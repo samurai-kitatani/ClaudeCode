@@ -16,7 +16,7 @@
 
         body {
             font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
             min-height: 100vh;
             padding-bottom: 70px;
         }
@@ -31,7 +31,7 @@
 
         /* Header */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
             color: white;
             padding: 15px 20px;
             text-align: center;
@@ -128,8 +128,8 @@
         }
 
         .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
+            color: #8B4513;
+            border-bottom-color: #8B4513;
             background: white;
         }
 
@@ -228,11 +228,11 @@
             margin: 5px 0;
             background: white;
             border-radius: 5px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #CD853F;
         }
 
         button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #CD853F 0%, #DAA520 100%);
             color: white;
             border: none;
             padding: 15px 30px;
@@ -244,7 +244,7 @@
             max-width: 300px;
             margin: 10px auto;
             display: block;
-            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 10px rgba(205, 133, 63, 0.3);
         }
 
         button:active {
@@ -297,7 +297,7 @@
             padding: 12px;
             margin: 8px 0;
             border-radius: 8px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #CD853F;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -329,7 +329,7 @@
             padding: 15px;
             margin: 10px 0;
             border-radius: 8px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #CD853F;
         }
 
         .player-score.winner {
@@ -385,9 +385,9 @@
         }
 
         .special-card.active {
-            background: #667eea;
+            background: #CD853F;
             color: white;
-            border-color: #667eea;
+            border-color: #CD853F;
         }
 
         /* Setup Screen */
@@ -412,18 +412,18 @@
         .player-count-btn {
             padding: 12px 20px;
             background: white;
-            border: 3px solid #3498db;
+            border: 3px solid #8B4513;
             border-radius: 10px;
             font-size: 1em;
             font-weight: bold;
-            color: #3498db;
+            color: #8B4513;
             cursor: pointer;
         }
 
         .player-count-btn.selected {
-            background: #667eea;
+            background: #CD853F;
             color: white;
-            border-color: #667eea;
+            border-color: #CD853F;
         }
 
         .player-inputs {
@@ -438,7 +438,7 @@
             width: 100%;
             max-width: 300px;
             padding: 12px;
-            border: 2px solid #3498db;
+            border: 2px solid #8B4513;
             border-radius: 8px;
             font-size: 1em;
         }
@@ -803,14 +803,16 @@
                         <div style="width:80px;padding:10px;background:${colorHex};color:${colorInfo.key === 'white' ? '#333' : 'white'};border-radius:5px;text-align:center;font-weight:bold;font-size:0.9em;">
                             ${colorInfo.label}
                         </div>
-                        <input type="text" id="player${i + 1}" data-color="${colorInfo.key}"
+                        <input type="text" id="player${i + 1}" data-color="${colorInfo.key}" data-order="${i}"
                                placeholder="${colorInfo.label}プレイヤー"
                                value="${savedName}"
                                onfocus="if(this.value===this.placeholder) this.value='';"
                                style="flex:1;padding:10px;border:2px solid ${colorHex};border-radius:5px;">
-                        <div style="display:flex;flex-direction:column;gap:2px;">
-                            <button onclick="movePlayerUp(${i})" style="width:30px;height:20px;padding:0;font-size:0.7em;background:#95a5a6;${i === 0 ? 'opacity:0.3;' : ''}">▲</button>
-                            <button onclick="movePlayerDown(${i})" style="width:30px;height:20px;padding:0;font-size:0.7em;background:#95a5a6;${i === count - 1 ? 'opacity:0.3;' : ''}">▼</button>
+                        <div style="display:flex;gap:3px;">
+                            ${Array.from({length: count}, (_, idx) =>
+                                `<button onclick="setPlayerOrder(${i}, ${idx})" id="orderBtn${i}_${idx}"
+                                 style="width:28px;height:28px;padding:0;font-size:0.8em;background:${idx === i ? '#CD853F' : '#ecf0f1'};color:${idx === i ? 'white' : '#333'};border:none;border-radius:5px;font-weight:bold;">${idx + 1}</button>`
+                            ).join('')}
                         </div>
                     </div>
                 `;
@@ -818,20 +820,58 @@
             }
         }
 
-        function movePlayerUp(index) {
-            if (index === 0) return;
+        function setPlayerOrder(playerIndex, newOrder) {
             const inputs = document.querySelectorAll('#playerInputs input[type="text"]');
-            const temp = inputs[index].value;
-            inputs[index].value = inputs[index - 1].value;
-            inputs[index - 1].value = temp;
-        }
+            const playerCount = inputs.length;
 
-        function movePlayerDown(index) {
-            const inputs = document.querySelectorAll('#playerInputs input[type="text"]');
-            if (index >= inputs.length - 1) return;
-            const temp = inputs[index].value;
-            inputs[index].value = inputs[index + 1].value;
-            inputs[index + 1].value = temp;
+            // Get all current values
+            const values = Array.from(inputs).map(input => input.value);
+            const colors = Array.from(inputs).map(input => input.dataset.color);
+
+            // Get current order
+            const currentOrder = parseInt(inputs[playerIndex].dataset.order);
+
+            if (currentOrder === newOrder) return;
+
+            // Swap players
+            const tempValue = values[playerIndex];
+            const tempColor = colors[playerIndex];
+
+            if (newOrder > currentOrder) {
+                // Move down
+                for (let i = playerIndex; i < newOrder; i++) {
+                    values[i] = values[i + 1];
+                    colors[i] = colors[i + 1];
+                }
+            } else {
+                // Move up
+                for (let i = playerIndex; i > newOrder; i--) {
+                    values[i] = values[i - 1];
+                    colors[i] = colors[i - 1];
+                }
+            }
+
+            values[newOrder] = tempValue;
+            colors[newOrder] = tempColor;
+
+            // Update all inputs
+            inputs.forEach((input, i) => {
+                input.value = values[i];
+                input.dataset.color = colors[i];
+                input.dataset.order = i;
+            });
+
+            // Update button styles
+            for (let i = 0; i < playerCount; i++) {
+                for (let j = 0; j < playerCount; j++) {
+                    const btn = document.getElementById(`orderBtn${i}_${j}`);
+                    if (btn) {
+                        const isSelected = i === j;
+                        btn.style.background = isSelected ? '#CD853F' : '#ecf0f1';
+                        btn.style.color = isSelected ? 'white' : '#333';
+                    }
+                }
+            }
         }
 
         function startGame() {
@@ -1191,6 +1231,7 @@
             if (!voiceEnabled || !('speechSynthesis' in window)) return;
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'ja-JP';
+            utterance.rate = 1.3; // Speed up to 1.3x (range: 0.1 to 10)
             window.speechSynthesis.speak(utterance);
         }
 
@@ -1446,26 +1487,46 @@
             // Extract player - check all parts
             try {
                 let playerName = null;
-                for (const part of parts) {
-                    // Direct match
-                    for (const player of players) {
-                        if (part.includes(player) || part.includes(player.replace('プレイヤー', ''))) {
-                            playerName = player;
-                            break;
-                        }
-                    }
-                    if (playerName) break;
 
-                    // Number match (e.g., "1" means プレイヤー1)
-                    const playerMatch = part.match(/(\d+)/);
-                    if (playerMatch) {
-                        const idx = parseInt(playerMatch[1]) - 1;
-                        if (idx >= 0 && idx < players.length) {
-                            playerName = players[idx];
-                            break;
+                // Color map for player identification
+                const colorToPlayerMap = {
+                    '赤': 0, 'あか': 0, 'レッド': 0,
+                    '青': 1, 'あお': 1, 'ブルー': 1,
+                    '白': 2, 'しろ': 2, 'ホワイト': 2,
+                    'オレンジ': 3, 'おれんじ': 3, '橙': 3
+                };
+
+                // Check for color names first
+                for (const [colorName, playerIndex] of Object.entries(colorToPlayerMap)) {
+                    if (cleaned.includes(colorName) && playerIndex < players.length) {
+                        playerName = players[playerIndex];
+                        break;
+                    }
+                }
+
+                if (!playerName) {
+                    for (const part of parts) {
+                        // Direct match
+                        for (const player of players) {
+                            if (part.includes(player) || part.includes(player.replace('プレイヤー', ''))) {
+                                playerName = player;
+                                break;
+                            }
+                        }
+                        if (playerName) break;
+
+                        // Number match (e.g., "1" means プレイヤー1)
+                        const playerMatch = part.match(/(\d+)/);
+                        if (playerMatch) {
+                            const idx = parseInt(playerMatch[1]) - 1;
+                            if (idx >= 0 && idx < players.length) {
+                                playerName = players[idx];
+                                break;
+                            }
                         }
                     }
                 }
+
                 if (!playerName) {
                     // Default to current player
                     playerName = players[currentPlayerIndex];
@@ -1656,8 +1717,14 @@
                             <div style="width:80px;padding:10px;background:${colorHex};color:${colorKey === 'white' ? '#333' : 'white'};border-radius:5px;text-align:center;font-weight:bold;">
                                 ${colorLabel}
                             </div>
-                            <input type="text" id="editPlayer${index}" value="${player}"
+                            <input type="text" id="editPlayer${index}" value="${player}" data-order="${index}"
                                    style="flex:1;padding:10px;border:2px solid ${colorHex};border-radius:5px;font-size:1em;">
+                            <div style="display:flex;gap:3px;">
+                                ${Array.from({length: players.length}, (_, idx) =>
+                                    `<button onclick="setEditPlayerOrder(${index}, ${idx})" id="editOrderBtn${index}_${idx}"
+                                     style="width:28px;height:28px;padding:0;font-size:0.8em;background:${idx === index ? '#CD853F' : '#ecf0f1'};color:${idx === index ? 'white' : '#333'};border:none;border-radius:5px;font-weight:bold;">${idx + 1}</button>`
+                                ).join('')}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1679,22 +1746,74 @@
             document.body.appendChild(modal);
         }
 
+        function setEditPlayerOrder(playerIndex, newOrder) {
+            const inputs = document.querySelectorAll('[id^="editPlayer"]');
+            const playerCount = inputs.length;
+
+            // Get all current values
+            const values = Array.from(inputs).map(input => input.value);
+
+            // Get current order
+            const currentOrder = parseInt(inputs[playerIndex].dataset.order);
+
+            if (currentOrder === newOrder) return;
+
+            // Swap players
+            const tempValue = values[playerIndex];
+
+            if (newOrder > currentOrder) {
+                // Move down
+                for (let i = playerIndex; i < newOrder; i++) {
+                    values[i] = values[i + 1];
+                }
+            } else {
+                // Move up
+                for (let i = playerIndex; i > newOrder; i--) {
+                    values[i] = values[i - 1];
+                }
+            }
+
+            values[newOrder] = tempValue;
+
+            // Update all inputs
+            inputs.forEach((input, i) => {
+                input.value = values[i];
+                input.dataset.order = i;
+            });
+
+            // Update button styles
+            for (let i = 0; i < playerCount; i++) {
+                for (let j = 0; j < playerCount; j++) {
+                    const btn = document.getElementById(`editOrderBtn${i}_${j}`);
+                    if (btn) {
+                        const isSelected = i === j;
+                        btn.style.background = isSelected ? '#CD853F' : '#ecf0f1';
+                        btn.style.color = isSelected ? 'white' : '#333';
+                    }
+                }
+            }
+        }
+
         function savePlayerSettings() {
             const oldPlayers = [...players];
-            const newPlayers = [];
             const fixedColors = ['red', 'blue', 'white', 'orange'];
 
-            for (let i = 0; i < players.length; i++) {
-                const newName = document.getElementById(`editPlayer${i}`).value.trim() || players[i];
-                newPlayers.push(newName);
-            }
+            // Build a mapping of current display order to values
+            const inputs = document.querySelectorAll('[id^="editPlayer"]');
+            const playerData = Array.from(inputs).map((input, displayIndex) => ({
+                name: input.value.trim() || oldPlayers[displayIndex],
+                originalIndex: displayIndex
+            }));
+
+            // Sort by original index to get the new order
+            const newPlayers = playerData.map(data => data.name);
 
             // Update players array and scores
             players = newPlayers;
             const newScores = {};
-            for (let i = 0; i < oldPlayers.length; i++) {
-                const oldPlayer = oldPlayers[i];
+            for (let i = 0; i < newPlayers.length; i++) {
                 const newPlayer = newPlayers[i];
+                const oldPlayer = oldPlayers[i];
                 const colorKey = fixedColors[i % 4];
                 newScores[newPlayer] = {
                     ...scores[oldPlayer],
