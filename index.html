@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>カタン ゲームマスター</title>
+    <title>カタン AIエージェント</title>
     <style>
         * {
             margin: 0;
@@ -459,7 +459,7 @@
     <div class="container">
         <!-- Setup Screen -->
         <div class="setup-screen" id="setupScreen">
-            <h1>🎲 カタン ゲームマスター</h1>
+            <h1>🤖 カタン AIエージェント</h1>
             <h2>プレイヤー設定</h2>
             <p>プレイヤー人数を選択：</p>
             <div class="player-count-selector">
@@ -477,7 +477,7 @@
         <div id="gameScreen" class="hidden">
             <!-- Header -->
             <div class="header">
-                <h1>🎲 カタン ゲームマスター</h1>
+                <h1>🤖 カタン AIエージェント</h1>
                 <button class="voice-toggle" id="voiceToggle" onclick="toggleVoice()">🔇 音声OFF</button>
             </div>
 
@@ -625,70 +625,94 @@
 
             // Load saved player names from localStorage
             const savedPlayers = JSON.parse(localStorage.getItem('catanPlayers') || '{}');
-            const savedPlayerColors = JSON.parse(localStorage.getItem('catanPlayerColors') || '{}');
 
             const playerInputsDiv = document.getElementById('playerInputs');
             playerInputsDiv.innerHTML = '';
 
-            const defaultColors = ['red', 'blue', 'white', 'orange'];
+            const fixedColors = [
+                { key: 'red', label: '赤' },
+                { key: 'blue', label: '青' },
+                { key: 'white', label: '白' },
+                { key: 'orange', label: 'オレンジ' }
+            ];
 
             for (let i = 0; i < count; i++) {
                 const playerKey = `player${i + 1}`;
                 const savedName = savedPlayers[playerKey] || '';
-                const savedColor = savedPlayerColors[playerKey] || defaultColors[i % 4];
-
-                const colorOptions = Object.entries(playerColors).map(([key, val]) =>
-                    `<option value="${key}" ${key === savedColor ? 'selected' : ''} style="background:${val.hex};">${val.name}</option>`
-                ).join('');
+                const colorInfo = fixedColors[i % 4];
+                const colorHex = playerColors[colorInfo.key].hex;
 
                 const inputDiv = document.createElement('div');
                 inputDiv.className = 'player-input';
                 inputDiv.innerHTML = `
                     <div style="display:flex;gap:10px;align-items:center;">
-                        <select id="color${i + 1}" style="width:100px;padding:10px;border:2px solid #dee2e6;border-radius:5px;font-size:1em;">
-                            ${colorOptions}
-                        </select>
-                        <input type="text" id="player${i + 1}"
-                               placeholder="プレイヤー${i + 1}"
+                        <div style="width:80px;padding:10px;background:${colorHex};color:${colorInfo.key === 'white' ? '#333' : 'white'};border-radius:5px;text-align:center;font-weight:bold;font-size:0.9em;">
+                            ${colorInfo.label}
+                        </div>
+                        <input type="text" id="player${i + 1}" data-color="${colorInfo.key}"
+                               placeholder="${colorInfo.label}プレイヤー"
                                value="${savedName}"
                                onfocus="if(this.value===this.placeholder) this.value='';"
-                               style="flex:1;">
+                               style="flex:1;padding:10px;border:2px solid ${colorHex};border-radius:5px;">
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                            <button onclick="movePlayerUp(${i})" style="width:30px;height:20px;padding:0;font-size:0.7em;background:#95a5a6;${i === 0 ? 'opacity:0.3;' : ''}">▲</button>
+                            <button onclick="movePlayerDown(${i})" style="width:30px;height:20px;padding:0;font-size:0.7em;background:#95a5a6;${i === count - 1 ? 'opacity:0.3;' : ''}">▼</button>
+                        </div>
                     </div>
                 `;
                 playerInputsDiv.appendChild(inputDiv);
             }
         }
 
+        function movePlayerUp(index) {
+            if (index === 0) return;
+            const inputs = document.querySelectorAll('#playerInputs input[type="text"]');
+            const temp = inputs[index].value;
+            inputs[index].value = inputs[index - 1].value;
+            inputs[index - 1].value = temp;
+        }
+
+        function movePlayerDown(index) {
+            const inputs = document.querySelectorAll('#playerInputs input[type="text"]');
+            if (index >= inputs.length - 1) return;
+            const temp = inputs[index].value;
+            inputs[index].value = inputs[index + 1].value;
+            inputs[index + 1].value = temp;
+        }
+
         function startGame() {
             players = [];
             const playerColorMap = {};
             const savedPlayers = {};
-            const savedColors = {};
+
+            const fixedColors = ['red', 'blue', 'white', 'orange'];
 
             for (let i = 0; i < playerCount; i++) {
-                const inputVal = document.getElementById(`player${i + 1}`).value.trim();
-                const name = inputVal || `プレイヤー${i + 1}`;
-                const colorKey = document.getElementById(`color${i + 1}`).value;
+                const input = document.getElementById(`player${i + 1}`);
+                const inputVal = input.value.trim();
+                const colorKey = fixedColors[i % 4];
+                const name = inputVal || `${playerColors[colorKey].name}プレイヤー`;
 
                 players.push(name);
                 playerColorMap[name] = playerColors[colorKey].hex;
 
                 // Save to localStorage
-                savedPlayers[`player${i + 1}`] = inputVal; // Save actual input (might be empty)
-                savedColors[`player${i + 1}`] = colorKey; // Save color key (red/blue/white/orange)
+                savedPlayers[`player${i + 1}`] = inputVal;
             }
 
-            // Save player names and colors
+            // Save player names
             localStorage.setItem('catanPlayers', JSON.stringify(savedPlayers));
-            localStorage.setItem('catanPlayerColors', JSON.stringify(savedColors));
 
             currentPlayerIndex = 0;
 
-            // Initialize scores
+            // Initialize scores with extended data
             scores = {};
             players.forEach(player => {
                 scores[player] = {
                     manual: 0,
+                    roads: 0,
+                    knights: 0,
+                    developmentCards: 0,
                     longestRoad: false,
                     largestArmy: false,
                     color: playerColorMap[player]
@@ -934,6 +958,10 @@
                             ${score.largestArmy ? '<div style="margin:3px 0;"><strong>⚔️ 最大騎士力:</strong> +2点</div>' : ''}
                             <hr style="margin:5px 0;border:none;border-top:1px solid #dee2e6;">
                             <div style="margin:3px 0;font-weight:bold;">合計: ${total}点</div>
+                            <hr style="margin:5px 0;border:none;border-top:1px solid #dee2e6;">
+                            <div style="margin:3px 0;color:#6c757d;"><strong>🛤️ 街道:</strong> ${score.roads || 0}本</div>
+                            <div style="margin:3px 0;color:#6c757d;"><strong>⚔️ 騎士:</strong> ${score.knights || 0}枚</div>
+                            <div style="margin:3px 0;color:#6c757d;"><strong>🎴 発展カード:</strong> ${score.developmentCards || 0}枚</div>
                         </div>
                         <div class="score-controls">
                             <button class="score-btn" onclick="adjustScore('${player}', -1)">−</button>
@@ -981,8 +1009,18 @@
 
         function resetScores() {
             if (!confirm('スコアをリセットしますか？')) return;
-            players.forEach(p => {
-                scores[p] = { manual: 0, longestRoad: false, largestArmy: false };
+            const fixedColors = ['red', 'blue', 'white', 'orange'];
+            players.forEach((p, i) => {
+                const colorKey = fixedColors[i % 4];
+                scores[p] = {
+                    manual: 0,
+                    roads: 0,
+                    knights: 0,
+                    developmentCards: 0,
+                    longestRoad: false,
+                    largestArmy: false,
+                    color: playerColors[colorKey].hex
+                };
             });
             updateScoreBoard();
         }
@@ -1061,33 +1099,143 @@
 
         function handleVoiceInput(text) {
             console.log('音声入力:', text);
-            const lowerText = text.toLowerCase();
+            const cleaned = text.replace(/\s/g, '');
 
             // Check for dice roll commands
-            if (text.includes('サイコロ') || text.includes('さいころ') ||
-                text.includes('振る') || text.includes('ふる') ||
-                text.includes('ダイス') || text.includes('ロール')) {
+            if (cleaned.includes('サイコロ') || cleaned.includes('さいころ') ||
+                cleaned.includes('振る') || cleaned.includes('ふる') ||
+                cleaned.includes('ダイス') || cleaned.includes('ロール')) {
                 rollDice();
+                speak('サイコロを振りました');
                 return;
             }
 
             // Check for player navigation
-            if (text.includes('次') || text.includes('つぎ') || text.includes('ネクスト')) {
+            if (cleaned.includes('次') || cleaned.includes('つぎ') || cleaned.includes('ネクスト')) {
                 nextPlayer();
                 return;
             }
 
-            if (text.includes('前') || text.includes('まえ') || text.includes('戻') || text.includes('もど')) {
+            if (cleaned.includes('前') || cleaned.includes('まえ') || cleaned.includes('戻') || cleaned.includes('もど')) {
                 previousPlayer();
+                return;
+            }
+
+            // Try AI Voice Command (プレイヤー色 + アイテム + アクション)
+            if (parseAIVoiceCommand(cleaned)) {
                 return;
             }
 
             // Try to parse as tile registration
             // Format: "番号、資源、プレイヤー、種類"
-            if (text.includes('番') || /\d+/.test(text)) {
+            if (cleaned.includes('番') || /\d+/.test(text)) {
                 parseTileInput(text);
                 return;
             }
+        }
+
+        function parseAIVoiceCommand(text) {
+            // プレイヤー色を認識
+            const colorMap = {
+                '赤': 0, 'あか': 0, 'レッド': 0,
+                '青': 1, 'あお': 1, 'ブルー': 1,
+                '白': 2, 'しろ': 2, 'ホワイト': 2,
+                'オレンジ': 3, 'おれんじ': 3, '橙': 3
+            };
+
+            let playerIndex = -1;
+            for (const [key, index] of Object.entries(colorMap)) {
+                if (text.includes(key)) {
+                    playerIndex = index;
+                    break;
+                }
+            }
+
+            if (playerIndex === -1 || playerIndex >= players.length) {
+                return false; // プレイヤー色が見つからない
+            }
+
+            const player = players[playerIndex];
+            let action = null;
+            let item = null;
+
+            // アイテムを認識
+            if (text.includes('街道') || text.includes('道') || text.includes('資材') || text.includes('交易路')) {
+                item = 'roads';
+            } else if (text.includes('開拓地') || text.includes('家') || text.includes('かいたくち')) {
+                item = 'settlement';
+            } else if (text.includes('都市') || text.includes('お城') || text.includes('城') || text.includes('とし')) {
+                item = 'city';
+            } else if (text.includes('騎士') || text.includes('兵隊') || text.includes('ナイト') || text.includes('きし')) {
+                item = 'knights';
+            } else if (text.includes('カード') || text.includes('発展') || text.includes('はってん')) {
+                item = 'developmentCards';
+            }
+
+            // アクションを認識
+            if (text.includes('増やす') || text.includes('プラス') || text.includes('作った') ||
+                text.includes('建設') || text.includes('ふやす') || text.includes('+')) {
+                action = 'add';
+            } else if (text.includes('減らす') || text.includes('マイナス') || text.includes('キャンセル') ||
+                       text.includes('へらす') || text.includes('-')) {
+                action = 'subtract';
+            } else if (text.includes('最大騎士力') || text.includes('ラージスト') || text.includes('最大')) {
+                action = 'largestArmy';
+            } else if (text.includes('最長交易路') || text.includes('ロンゲスト') || text.includes('最長')) {
+                action = 'longestRoad';
+            }
+
+            if (!action) return false;
+
+            // アクション実行
+            executeVoiceCommand(player, item, action);
+            return true;
+        }
+
+        function executeVoiceCommand(player, item, action) {
+            const fixedColors = ['red', 'blue', 'white', 'orange'];
+            const playerIndex = players.indexOf(player);
+            const colorLabel = playerColors[fixedColors[playerIndex % 4]].name;
+
+            if (action === 'add') {
+                if (item === 'roads') {
+                    scores[player].roads++;
+                    speak(`${colorLabel}の街道を増やしました。現在${scores[player].roads}本です`);
+                } else if (item === 'settlement') {
+                    // マップに開拓地を登録する必要があるが、ここでは仮実装
+                    speak(`${colorLabel}の開拓地を登録します。Mapタブで登録してください`);
+                } else if (item === 'city') {
+                    speak(`${colorLabel}の都市を登録します。Mapタブで登録してください`);
+                } else if (item === 'knights') {
+                    scores[player].knights++;
+                    speak(`${colorLabel}の騎士を増やしました。現在${scores[player].knights}枚です`);
+                } else if (item === 'developmentCards') {
+                    scores[player].developmentCards++;
+                    speak(`${colorLabel}の発展カードを増やしました。現在${scores[player].developmentCards}枚です`);
+                }
+            } else if (action === 'subtract') {
+                if (item === 'roads' && scores[player].roads > 0) {
+                    scores[player].roads--;
+                    speak(`${colorLabel}の街道を減らしました。現在${scores[player].roads}本です`);
+                } else if (item === 'knights' && scores[player].knights > 0) {
+                    scores[player].knights--;
+                    speak(`${colorLabel}の騎士を減らしました。現在${scores[player].knights}枚です`);
+                } else if (item === 'developmentCards' && scores[player].developmentCards > 0) {
+                    scores[player].developmentCards--;
+                    speak(`${colorLabel}の発展カードを減らしました。現在${scores[player].developmentCards}枚です`);
+                }
+            } else if (action === 'largestArmy') {
+                players.forEach(p => scores[p].largestArmy = false);
+                scores[player].largestArmy = true;
+                speak(`${colorLabel}が最大騎士力を獲得しました`);
+            } else if (action === 'longestRoad') {
+                players.forEach(p => scores[p].longestRoad = false);
+                scores[player].longestRoad = true;
+                speak(`${colorLabel}が最長交易路を獲得しました`);
+            }
+
+            updateScoreBoard();
+            updatePlayScoreRanking();
         }
 
         function parseTileInput(text) {
@@ -1281,29 +1429,21 @@
 
         // Player settings
         function showPlayerSettings() {
-            const settingsHtml = players.map((player, index) => {
-                const currentColorHex = scores[player]?.color || '#667eea';
-                // Find matching color key
-                let currentColorKey = 'red';
-                for (const [key, val] of Object.entries(playerColors)) {
-                    if (val.hex === currentColorHex) {
-                        currentColorKey = key;
-                        break;
-                    }
-                }
+            const fixedColors = ['red', 'blue', 'white', 'orange'];
 
-                const colorOptions = Object.entries(playerColors).map(([key, val]) =>
-                    `<option value="${key}" ${key === currentColorKey ? 'selected' : ''}>${val.name}</option>`
-                ).join('');
+            const settingsHtml = players.map((player, index) => {
+                const colorKey = fixedColors[index % 4];
+                const colorHex = playerColors[colorKey].hex;
+                const colorLabel = playerColors[colorKey].name;
 
                 return `
                     <div style="margin:15px 0;padding:10px;background:white;border-radius:8px;">
                         <div style="display:flex;gap:10px;align-items:center;">
-                            <select id="editColor${index}" style="width:100px;padding:10px;border:2px solid #dee2e6;border-radius:5px;font-size:1em;">
-                                ${colorOptions}
-                            </select>
+                            <div style="width:80px;padding:10px;background:${colorHex};color:${colorKey === 'white' ? '#333' : 'white'};border-radius:5px;text-align:center;font-weight:bold;">
+                                ${colorLabel}
+                            </div>
                             <input type="text" id="editPlayer${index}" value="${player}"
-                                   style="flex:1;padding:10px;border:2px solid #dee2e6;border-radius:5px;font-size:1em;">
+                                   style="flex:1;padding:10px;border:2px solid ${colorHex};border-radius:5px;font-size:1em;">
                         </div>
                     </div>
                 `;
@@ -1328,14 +1468,11 @@
         function savePlayerSettings() {
             const oldPlayers = [...players];
             const newPlayers = [];
-            const playerColorMap = {};
+            const fixedColors = ['red', 'blue', 'white', 'orange'];
 
             for (let i = 0; i < players.length; i++) {
                 const newName = document.getElementById(`editPlayer${i}`).value.trim() || players[i];
-                const colorKey = document.getElementById(`editColor${i}`).value;
-                const colorHex = playerColors[colorKey].hex;
                 newPlayers.push(newName);
-                playerColorMap[newName] = colorHex;
             }
 
             // Update players array and scores
@@ -1344,9 +1481,10 @@
             for (let i = 0; i < oldPlayers.length; i++) {
                 const oldPlayer = oldPlayers[i];
                 const newPlayer = newPlayers[i];
+                const colorKey = fixedColors[i % 4];
                 newScores[newPlayer] = {
                     ...scores[oldPlayer],
-                    color: playerColorMap[newPlayer]
+                    color: playerColors[colorKey].hex
                 };
             }
             scores = newScores;
