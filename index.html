@@ -414,7 +414,9 @@
 
         // プレイヤー設定の初期化
         function initPlayerSetup() {
+            console.log('initPlayerSetup called');
             selectPlayerCount(4);
+            console.log('Player setup initialized');
         }
 
         function selectPlayerCount(count, target = null) {
@@ -450,6 +452,8 @@
         }
 
         function startGame() {
+            console.log('startGame called');
+
             // プレイヤー名を取得
             players = [];
             for (let i = 0; i < playerCount; i++) {
@@ -458,11 +462,22 @@
             }
 
             currentPlayerIndex = 0;
+            console.log('Players:', players);
 
             // 画面を切り替え
-            document.getElementById('setupScreen').classList.add('hidden');
-            document.getElementById('gameScreen').classList.remove('hidden');
-            document.getElementById('settingsBtn').style.display = 'flex';
+            const setupScreen = document.getElementById('setupScreen');
+            const gameScreen = document.getElementById('gameScreen');
+            const settingsBtn = document.getElementById('settingsBtn');
+
+            console.log('Setup screen:', setupScreen);
+            console.log('Game screen:', gameScreen);
+            console.log('Settings button:', settingsBtn);
+
+            setupScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            settingsBtn.style.display = 'flex';
+
+            console.log('Screen switched. Game screen classes:', gameScreen.className);
 
             // 最初のプレイヤーを表示
             updateCurrentPlayer();
@@ -586,7 +601,12 @@
         }
 
         function rollDice() {
-            if (isRolling) return;
+            console.log('rollDice called');
+
+            if (isRolling) {
+                console.log('Already rolling, returning');
+                return;
+            }
 
             isRolling = true;
             const button = document.getElementById('rollButton');
@@ -594,6 +614,8 @@
             const dice2 = document.getElementById('dice2');
             const result = document.getElementById('result');
             const robberText = document.getElementById('robberText');
+
+            console.log('Dice elements:', { dice1, dice2, button, result, robberText });
 
             button.disabled = true;
 
