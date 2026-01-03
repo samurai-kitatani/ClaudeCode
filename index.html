@@ -122,6 +122,14 @@
             opacity: 1;
         }
 
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
         button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -135,8 +143,8 @@
             font-weight: bold;
             touch-action: manipulation;
             min-height: 56px;
-            width: 100%;
-            max-width: 300px;
+            flex: 1;
+            min-width: 140px;
         }
 
         button:active {
@@ -148,6 +156,28 @@
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+        }
+
+        #voiceButton {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+        }
+
+        #voiceButton.listening {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            animation: pulse-listening 1.5s infinite;
+        }
+
+        @keyframes pulse-listening {
+            0%, 100% { box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4); }
+            50% { box-shadow: 0 5px 25px rgba(39, 174, 96, 0.8); }
+        }
+
+        .voice-status {
+            margin-top: 10px;
+            font-size: clamp(0.9em, 3.5vw, 1em);
+            color: #666;
+            min-height: 24px;
         }
 
         .info {
@@ -185,16 +215,118 @@
         <div class="result" id="result">—</div>
         <div class="robber-text" id="robberText">⚠️ 盗賊が来た！ ⚠️</div>
 
-        <button id="rollButton" onclick="rollDice()">サイコロを振る</button>
+        <div class="button-container">
+            <button id="rollButton" onclick="rollDice()">サイコロを振る</button>
+            <button id="voiceButton" onclick="toggleVoiceRecognition()">🎤 音声</button>
+        </div>
+
+        <div class="voice-status" id="voiceStatus"></div>
 
         <div class="info">
             <p>カタンのルール：2つのサイコロの合計値で資源を獲得！</p>
             <p>合計が7の場合は盗賊が動きます。</p>
+            <p>「サイコロ！」や「振る！」と話しかけてみてください 🎤</p>
         </div>
     </div>
 
     <script>
         let isRolling = false;
+        let recognition = null;
+        let isListening = false;
+
+        // 音声認識の初期化
+        function initVoiceRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.lang = 'ja-JP';
+                recognition.continuous = true;
+                recognition.interimResults = false;
+
+                recognition.onresult = (event) => {
+                    const last = event.results.length - 1;
+                    const text = event.results[last][0].transcript.toLowerCase();
+                    document.getElementById('voiceStatus').textContent = `聞き取り: "${event.results[last][0].transcript}"`;
+
+                    // サイコロを振るトリガーワード
+                    if (text.includes('サイコロ') || text.includes('さいころ') ||
+                        text.includes('振る') || text.includes('ふる') ||
+                        text.includes('ダイス') || text.includes('だいす') ||
+                        text.includes('ロール') || text.includes('ろーる')) {
+                        rollDice();
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('音声認識エラー:', event.error);
+                    if (event.error === 'not-allowed') {
+                        document.getElementById('voiceStatus').textContent = '⚠️ マイクの許可が必要です';
+                    } else {
+                        document.getElementById('voiceStatus').textContent = '音声認識エラー';
+                    }
+                    stopVoiceRecognition();
+                };
+
+                recognition.onend = () => {
+                    if (isListening) {
+                        // 自動的に再開
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            console.log('音声認識の再開に失敗');
+                        }
+                    }
+                };
+            }
+        }
+
+        function toggleVoiceRecognition() {
+            if (!recognition) {
+                initVoiceRecognition();
+            }
+
+            if (!recognition) {
+                alert('お使いのブラウザは音声認識に対応していません。Chrome、Edge、Safariをお試しください。');
+                return;
+            }
+
+            if (isListening) {
+                stopVoiceRecognition();
+            } else {
+                startVoiceRecognition();
+            }
+        }
+
+        function startVoiceRecognition() {
+            try {
+                recognition.start();
+                isListening = true;
+                document.getElementById('voiceButton').classList.add('listening');
+                document.getElementById('voiceStatus').textContent = '🎤 聞いています...';
+            } catch (e) {
+                console.error('音声認識の開始に失敗:', e);
+            }
+        }
+
+        function stopVoiceRecognition() {
+            if (recognition) {
+                recognition.stop();
+            }
+            isListening = false;
+            document.getElementById('voiceButton').classList.remove('listening');
+            document.getElementById('voiceStatus').textContent = '';
+        }
+
+        // 音声読み上げ
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ja-JP';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
 
         function rollDice() {
             if (isRolling) return;
@@ -245,9 +377,11 @@
                 if (total === 7) {
                     result.classList.add('robber');
                     robberText.classList.add('show');
+                    speak(`${total}、盗賊が来ました！`);
                 } else {
                     result.classList.remove('robber');
                     robberText.classList.remove('show');
+                    speak(`合計${total}です`);
                 }
 
                 button.disabled = false;
