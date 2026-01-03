@@ -63,6 +63,49 @@
             background: #27ae60;
         }
 
+        .voice-input-btn {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+            width: 100%;
+            max-width: 300px;
+            margin: 10px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .voice-input-btn.listening {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            animation: pulse-mic 1.5s infinite;
+        }
+
+        @keyframes pulse-mic {
+            0%, 100% { box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4); }
+            50% { box-shadow: 0 5px 25px rgba(39, 174, 96, 0.8); }
+        }
+
+        .voice-status {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            min-height: 40px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .voice-help {
+            background: #e3f2fd;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-size: 0.85em;
+            color: #1976d2;
+            border-left: 4px solid #2196f3;
+        }
+
         /* Tab Navigation */
         .tabs {
             display: flex;
@@ -458,6 +501,10 @@
                     <p style="color:#6c757d;">サイコロを振ってください</p>
                 </div>
                 <button onclick="rollDice()">サイコロを振る</button>
+                <button class="voice-input-btn" id="playVoiceBtn" onclick="togglePlayVoice()">
+                    <span id="playVoiceIcon">🎤</span> 音声入力
+                </button>
+                <div class="voice-status" id="playVoiceStatus">音声で「サイコロ」「振る」と言ってください</div>
                 <button onclick="nextPlayer()" style="background:#6c757d;">次のプレイヤー</button>
             </div>
 
@@ -506,6 +553,13 @@
                         </div>
                     </div>
                     <button onclick="addTile()">➕ 土地を追加</button>
+                    <button class="voice-input-btn" id="mapVoiceBtn" onclick="toggleMapVoice()">
+                        <span id="mapVoiceIcon">🎤</span> 音声で登録
+                    </button>
+                    <div class="voice-help">
+                        📢 音声入力の例: 「8番、木、プレイヤー1、開拓地」
+                    </div>
+                    <div class="voice-status" id="mapVoiceStatus">音声入力をタップして話してください</div>
                 </div>
                 <h3 style="margin-top:20px;margin-bottom:10px;">登録済み土地</h3>
                 <div class="tile-list" id="tileList"></div>
@@ -529,6 +583,9 @@
         let scores = {};
         let voiceEnabled = false;
         let isRolling = false;
+        let recognition = null;
+        let isPlayVoiceListening = false;
+        let isMapVoiceListening = false;
 
         // Resource Names
         const resources = {
@@ -833,6 +890,178 @@
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'ja-JP';
             window.speechSynthesis.speak(utterance);
+        }
+
+        // Voice Recognition
+        function initVoiceRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.lang = 'ja-JP';
+                recognition.continuous = false;
+                recognition.interimResults = false;
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    handleVoiceInput(transcript);
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('音声認識エラー:', event.error);
+                    if (isPlayVoiceListening) {
+                        document.getElementById('playVoiceStatus').textContent = '⚠️ エラーが発生しました';
+                        stopPlayVoice();
+                    }
+                    if (isMapVoiceListening) {
+                        document.getElementById('mapVoiceStatus').textContent = '⚠️ エラーが発生しました';
+                        stopMapVoice();
+                    }
+                };
+
+                recognition.onend = () => {
+                    if (isPlayVoiceListening) stopPlayVoice();
+                    if (isMapVoiceListening) stopMapVoice();
+                };
+            }
+        }
+
+        function handleVoiceInput(text) {
+            console.log('音声入力:', text);
+
+            if (isPlayVoiceListening) {
+                // Play tab: dice rolling
+                document.getElementById('playVoiceStatus').textContent = `聞き取り: "${text}"`;
+                if (text.includes('サイコロ') || text.includes('さいころ') ||
+                    text.includes('振る') || text.includes('ふる') ||
+                    text.includes('ダイス') || text.includes('ロール')) {
+                    rollDice();
+                    stopPlayVoice();
+                } else {
+                    document.getElementById('playVoiceStatus').textContent = '「サイコロ」または「振る」と言ってください';
+                }
+            }
+
+            if (isMapVoiceListening) {
+                // Map tab: tile registration
+                document.getElementById('mapVoiceStatus').textContent = `聞き取り: "${text}"`;
+                parseTileInput(text);
+                stopMapVoice();
+            }
+        }
+
+        function parseTileInput(text) {
+            // Parse input like "8番、木、プレイヤー1、開拓地"
+            try {
+                const parts = text.replace(/\s/g, '').split(/、|,/);
+
+                // Extract number
+                const numberMatch = parts[0].match(/(\d+)/);
+                if (!numberMatch) throw new Error('数字が見つかりません');
+                const number = parseInt(numberMatch[1]);
+
+                // Extract resource
+                let resource = null;
+                const resourceMap = {
+                    '木': 'wood', 'き': 'wood',
+                    '土': 'brick', 'つち': 'brick', 'レンガ': 'brick',
+                    '麦': 'wheat', 'むぎ': 'wheat', '小麦': 'wheat',
+                    '羊': 'sheep', 'ひつじ': 'sheep',
+                    '石': 'ore', 'いし': 'ore', '鉱石': 'ore'
+                };
+                for (const [key, value] of Object.entries(resourceMap)) {
+                    if (parts[1].includes(key)) {
+                        resource = value;
+                        break;
+                    }
+                }
+                if (!resource) throw new Error('資源が見つかりません');
+
+                // Extract player
+                let playerName = null;
+                for (const player of players) {
+                    if (parts[2].includes(player) || parts[2].includes(player.replace('プレイヤー', ''))) {
+                        playerName = player;
+                        break;
+                    }
+                }
+                if (!playerName) {
+                    // Try to extract player number
+                    const playerMatch = parts[2].match(/(\d+)/);
+                    if (playerMatch) {
+                        const idx = parseInt(playerMatch[1]) - 1;
+                        if (idx >= 0 && idx < players.length) {
+                            playerName = players[idx];
+                        }
+                    }
+                }
+                if (!playerName) throw new Error('プレイヤーが見つかりません');
+
+                // Extract type
+                let type = 'settlement';
+                if (parts[3]) {
+                    if (parts[3].includes('都市') || parts[3].includes('とし')) {
+                        type = 'city';
+                    }
+                }
+
+                // Set form values
+                document.getElementById('tileNumber').value = number;
+                document.getElementById('tileResource').value = resource;
+                document.getElementById('tilePlayer').value = playerName;
+                document.getElementById('tileType').value = type;
+
+                // Add tile
+                addTile();
+                document.getElementById('mapVoiceStatus').textContent = `✅ 登録しました: ${number}番 ${resources[resource].name} (${playerName})`;
+            } catch (error) {
+                document.getElementById('mapVoiceStatus').textContent = `❌ ${error.message}。もう一度お試しください`;
+            }
+        }
+
+        function togglePlayVoice() {
+            if (!recognition) initVoiceRecognition();
+            if (!recognition) {
+                alert('音声認識に対応していません');
+                return;
+            }
+
+            if (isPlayVoiceListening) {
+                stopPlayVoice();
+            } else {
+                stopMapVoice(); // Stop map voice if active
+                isPlayVoiceListening = true;
+                document.getElementById('playVoiceBtn').classList.add('listening');
+                document.getElementById('playVoiceStatus').textContent = '🎤 聞いています...';
+                recognition.start();
+            }
+        }
+
+        function stopPlayVoice() {
+            isPlayVoiceListening = false;
+            document.getElementById('playVoiceBtn').classList.remove('listening');
+        }
+
+        function toggleMapVoice() {
+            if (!recognition) initVoiceRecognition();
+            if (!recognition) {
+                alert('音声認識に対応していません');
+                return;
+            }
+
+            if (isMapVoiceListening) {
+                stopMapVoice();
+            } else {
+                stopPlayVoice(); // Stop play voice if active
+                isMapVoiceListening = true;
+                document.getElementById('mapVoiceBtn').classList.add('listening');
+                document.getElementById('mapVoiceStatus').textContent = '🎤 聞いています...';
+                recognition.start();
+            }
+        }
+
+        function stopMapVoice() {
+            isMapVoiceListening = false;
+            document.getElementById('mapVoiceBtn').classList.remove('listening');
         }
 
         // Tab Switching
