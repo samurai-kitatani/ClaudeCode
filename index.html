@@ -500,12 +500,22 @@
                     <h3>資源配布</h3>
                     <p style="color:#6c757d;">サイコロを振ってください</p>
                 </div>
+
+                <!-- Score Ranking -->
+                <div style="background:#f8f9fa;border-radius:10px;padding:15px;margin:20px 0;">
+                    <h3 style="margin-bottom:10px;color:#495057;">🏆 スコアランキング</h3>
+                    <div id="playScoreRanking"></div>
+                </div>
+
+                <div class="voice-status" style="background:#e8f5e9;border:2px solid #4caf50;">
+                    🎤 音声入力 常時ON - 「サイコロ」「振る」または「番号＋資源＋プレイヤー＋種類」で登録
+                </div>
                 <button onclick="rollDice()">サイコロを振る</button>
-                <button class="voice-input-btn" id="playVoiceBtn" onclick="togglePlayVoice()">
-                    <span id="playVoiceIcon">🎤</span> 音声入力
-                </button>
-                <div class="voice-status" id="playVoiceStatus">音声で「サイコロ」「振る」と言ってください</div>
-                <button onclick="nextPlayer()" style="background:#6c757d;">次のプレイヤー</button>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+                    <button onclick="previousPlayer()" style="background:#95a5a6;">⬅️ 前の人</button>
+                    <button onclick="nextPlayer()" style="background:#6c757d;">次の人 ➡️</button>
+                </div>
+                <button onclick="showPlayerSettings()" style="background:#e67e22;margin-top:10px;">⚙️ プレイヤー設定</button>
             </div>
 
             <!-- Map Tab -->
@@ -553,13 +563,10 @@
                         </div>
                     </div>
                     <button onclick="addTile()">➕ 土地を追加</button>
-                    <button class="voice-input-btn" id="mapVoiceBtn" onclick="toggleMapVoice()">
-                        <span id="mapVoiceIcon">🎤</span> 音声で登録
-                    </button>
-                    <div class="voice-help">
-                        📢 音声入力の例: 「8番、木、プレイヤー1、開拓地」
+                    <div class="voice-help" style="background:#e8f5e9;border:2px solid #4caf50;">
+                        🎤 音声入力 常時ON<br>
+                        📢 例: 「8番、木、プレイヤー1、開拓地」
                     </div>
-                    <div class="voice-status" id="mapVoiceStatus">音声入力をタップして話してください</div>
                 </div>
                 <h3 style="margin-top:20px;margin-bottom:10px;">登録済み土地</h3>
                 <div class="tile-list" id="tileList"></div>
@@ -584,8 +591,7 @@
         let voiceEnabled = false;
         let isRolling = false;
         let recognition = null;
-        let isPlayVoiceListening = false;
-        let isMapVoiceListening = false;
+        let voiceRecognitionActive = false;
 
         // Resource Names
         const resources = {
@@ -609,22 +615,58 @@
             });
             if (target) target.classList.add('selected');
 
+            // Load saved player names from localStorage
+            const savedPlayers = JSON.parse(localStorage.getItem('catanPlayers') || '{}');
+            const savedColors = JSON.parse(localStorage.getItem('catanPlayerColors') || '{}');
+
             const playerInputsDiv = document.getElementById('playerInputs');
             playerInputsDiv.innerHTML = '';
             for (let i = 0; i < count; i++) {
+                const playerKey = `player${i + 1}`;
+                const savedName = savedPlayers[playerKey] || '';
+                const savedColor = savedColors[playerKey] || '#667eea';
+
                 const inputDiv = document.createElement('div');
                 inputDiv.className = 'player-input';
-                inputDiv.innerHTML = `<input type="text" id="player${i + 1}" placeholder="プレイヤー${i + 1}" value="プレイヤー${i + 1}">`;
+                inputDiv.innerHTML = `
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <input type="color" id="color${i + 1}" value="${savedColor}"
+                               style="width:50px;height:40px;border:none;border-radius:5px;cursor:pointer;">
+                        <input type="text" id="player${i + 1}"
+                               placeholder="プレイヤー${i + 1}"
+                               value="${savedName}"
+                               onfocus="if(this.value===this.placeholder) this.value='';"
+                               style="flex:1;">
+                    </div>
+                `;
                 playerInputsDiv.appendChild(inputDiv);
             }
         }
 
         function startGame() {
             players = [];
+            const playerColors = {};
+            const savedPlayers = {};
+
             for (let i = 0; i < playerCount; i++) {
-                const name = document.getElementById(`player${i + 1}`).value.trim() || `プレイヤー${i + 1}`;
+                const inputVal = document.getElementById(`player${i + 1}`).value.trim();
+                const name = inputVal || `プレイヤー${i + 1}`;
+                const color = document.getElementById(`color${i + 1}`).value;
+
                 players.push(name);
+                playerColors[name] = color;
+
+                // Save to localStorage
+                savedPlayers[`player${i + 1}`] = inputVal; // Save actual input (might be empty)
+                savedPlayers[name] = color;
             }
+
+            // Save player names and colors
+            localStorage.setItem('catanPlayers', JSON.stringify(savedPlayers));
+            localStorage.setItem('catanPlayerColors', JSON.stringify({
+                ...Object.fromEntries(Object.keys(savedPlayers).filter(k => k.startsWith('player')).map((k, i) => [k, document.getElementById(`color${i + 1}`).value]))
+            }));
+
             currentPlayerIndex = 0;
 
             // Initialize scores
@@ -633,7 +675,8 @@
                 scores[player] = {
                     manual: 0,
                     longestRoad: false,
-                    largestArmy: false
+                    largestArmy: false,
+                    color: playerColors[player]
                 };
             });
 
@@ -648,6 +691,9 @@
             updateCurrentPlayer();
             updateScoreBoard();
             speak(`${players[currentPlayerIndex]}さん、サイコロを振ってください！`);
+
+            // Start voice recognition
+            startVoiceRecognition();
         }
 
         function updatePlayerDropdown() {
@@ -656,7 +702,42 @@
         }
 
         function updateCurrentPlayer() {
+            const currentColor = scores[players[currentPlayerIndex]]?.color || '#667eea';
             document.getElementById('currentPlayer').textContent = `${players[currentPlayerIndex]}さんのばん`;
+            document.getElementById('currentPlayer').style.background = `linear-gradient(135deg, ${currentColor} 0%, ${adjustColor(currentColor, -20)} 100%)`;
+            updatePlayScoreRanking();
+        }
+
+        function adjustColor(color, percent) {
+            const num = parseInt(color.replace("#",""), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = (num >> 16) + amt;
+            const G = (num >> 8 & 0x00FF) + amt;
+            const B = (num & 0x0000FF) + amt;
+            return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 +
+                (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255))
+                .toString(16).slice(1);
+        }
+
+        function updatePlayScoreRanking() {
+            const ranking = players.map(player => {
+                const score = scores[player];
+                const basePoints = tiles.filter(t => t.player === player).reduce((sum, t) =>
+                    sum + (t.type === 'city' ? 2 : 1), 0
+                );
+                const bonusPoints = (score.longestRoad ? 2 : 0) + (score.largestArmy ? 2 : 0);
+                const total = basePoints + score.manual + bonusPoints;
+                return { player, total, color: score.color };
+            }).sort((a, b) => b.total - a.total);
+
+            const rankingHtml = ranking.map((item, index) => `
+                <div style="display:flex;justify-content:space-between;padding:8px;margin:5px 0;background:white;border-radius:5px;border-left:4px solid ${item.color};">
+                    <span><strong>${index + 1}位</strong> ${item.player}</span>
+                    <span style="font-weight:bold;color:${item.color};">${item.total}点</span>
+                </div>
+            `).join('');
+
+            document.getElementById('playScoreRanking').innerHTML = rankingHtml;
         }
 
         function nextPlayer() {
@@ -707,6 +788,7 @@
                     speakDistribution(total, distribution);
                 }
 
+                updatePlayScoreRanking();
                 isRolling = false;
             }, 500);
         }
@@ -774,12 +856,16 @@
             tiles.push(tile);
             saveTiles();
             renderTileList();
+            updatePlayScoreRanking();
+            updateScoreBoard();
         }
 
         function deleteTile(id) {
             tiles = tiles.filter(t => t.id !== id);
             saveTiles();
             renderTileList();
+            updatePlayScoreRanking();
+            updateScoreBoard();
         }
 
         function renderTileList() {
@@ -898,113 +984,157 @@
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 recognition = new SpeechRecognition();
                 recognition.lang = 'ja-JP';
-                recognition.continuous = false;
+                recognition.continuous = true;
                 recognition.interimResults = false;
 
                 recognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript;
+                    const lastResult = event.results[event.results.length - 1];
+                    const transcript = lastResult[0].transcript;
                     handleVoiceInput(transcript);
                 };
 
                 recognition.onerror = (event) => {
                     console.error('音声認識エラー:', event.error);
-                    if (isPlayVoiceListening) {
-                        document.getElementById('playVoiceStatus').textContent = '⚠️ エラーが発生しました';
-                        stopPlayVoice();
-                    }
-                    if (isMapVoiceListening) {
-                        document.getElementById('mapVoiceStatus').textContent = '⚠️ エラーが発生しました';
-                        stopMapVoice();
+                    if (event.error === 'no-speech' || event.error === 'audio-capture') {
+                        // Automatically restart
+                        setTimeout(() => {
+                            if (voiceRecognitionActive) {
+                                try { recognition.start(); } catch(e) {}
+                            }
+                        }, 1000);
                     }
                 };
 
                 recognition.onend = () => {
-                    if (isPlayVoiceListening) stopPlayVoice();
-                    if (isMapVoiceListening) stopMapVoice();
+                    // Auto-restart if still active
+                    if (voiceRecognitionActive) {
+                        setTimeout(() => {
+                            try { recognition.start(); } catch(e) {}
+                        }, 500);
+                    }
                 };
+            }
+        }
+
+        function startVoiceRecognition() {
+            if (!recognition) initVoiceRecognition();
+            if (recognition && !voiceRecognitionActive) {
+                voiceRecognitionActive = true;
+                try {
+                    recognition.start();
+                } catch(e) {
+                    console.log('音声認識は既に開始されています');
+                }
+            }
+        }
+
+        function stopVoiceRecognition() {
+            voiceRecognitionActive = false;
+            if (recognition) {
+                try { recognition.stop(); } catch(e) {}
             }
         }
 
         function handleVoiceInput(text) {
             console.log('音声入力:', text);
+            const lowerText = text.toLowerCase();
 
-            if (isPlayVoiceListening) {
-                // Play tab: dice rolling
-                document.getElementById('playVoiceStatus').textContent = `聞き取り: "${text}"`;
-                if (text.includes('サイコロ') || text.includes('さいころ') ||
-                    text.includes('振る') || text.includes('ふる') ||
-                    text.includes('ダイス') || text.includes('ロール')) {
-                    rollDice();
-                    stopPlayVoice();
-                } else {
-                    document.getElementById('playVoiceStatus').textContent = '「サイコロ」または「振る」と言ってください';
-                }
+            // Check for dice roll commands
+            if (text.includes('サイコロ') || text.includes('さいころ') ||
+                text.includes('振る') || text.includes('ふる') ||
+                text.includes('ダイス') || text.includes('ロール')) {
+                rollDice();
+                return;
             }
 
-            if (isMapVoiceListening) {
-                // Map tab: tile registration
-                document.getElementById('mapVoiceStatus').textContent = `聞き取り: "${text}"`;
+            // Check for player navigation
+            if (text.includes('次') || text.includes('つぎ') || text.includes('ネクスト')) {
+                nextPlayer();
+                return;
+            }
+
+            if (text.includes('前') || text.includes('まえ') || text.includes('戻') || text.includes('もど')) {
+                previousPlayer();
+                return;
+            }
+
+            // Try to parse as tile registration
+            // Format: "番号、資源、プレイヤー、種類"
+            if (text.includes('番') || /\d+/.test(text)) {
                 parseTileInput(text);
-                stopMapVoice();
+                return;
             }
         }
 
         function parseTileInput(text) {
             // Parse input like "8番、木、プレイヤー1、開拓地"
             try {
-                const parts = text.replace(/\s/g, '').split(/、|,/);
+                // Remove spaces and split
+                const cleaned = text.replace(/\s/g, '');
+                const parts = cleaned.split(/、|,|。/);
 
-                // Extract number
-                const numberMatch = parts[0].match(/(\d+)/);
+                console.log('音声パース:', parts);
+
+                // Extract number (must be 2-12, excluding 7)
+                const numberMatch = cleaned.match(/(\d+)/);
                 if (!numberMatch) throw new Error('数字が見つかりません');
                 const number = parseInt(numberMatch[1]);
+                if (![2,3,4,5,6,8,9,10,11,12].includes(number)) {
+                    throw new Error(`${number}は無効な番号です（2-6, 8-12のみ）`);
+                }
 
-                // Extract resource
+                // Extract resource from anywhere in the text
                 let resource = null;
                 const resourceMap = {
-                    '木': 'wood', 'き': 'wood',
-                    '土': 'brick', 'つち': 'brick', 'レンガ': 'brick',
-                    '麦': 'wheat', 'むぎ': 'wheat', '小麦': 'wheat',
-                    '羊': 'sheep', 'ひつじ': 'sheep',
-                    '石': 'ore', 'いし': 'ore', '鉱石': 'ore'
+                    '木': 'wood', 'き': 'wood', 'もく': 'wood',
+                    '土': 'brick', 'つち': 'brick', 'レンガ': 'brick', 'れんが': 'brick',
+                    '麦': 'wheat', 'むぎ': 'wheat', 'ムギ': 'wheat', '小麦': 'wheat',
+                    '羊': 'sheep', 'ひつじ': 'sheep', 'ヒツジ': 'sheep',
+                    '石': 'ore', 'いし': 'ore', 'イシ': 'ore', '鉱石': 'ore'
                 };
                 for (const [key, value] of Object.entries(resourceMap)) {
-                    if (parts[1].includes(key)) {
+                    if (cleaned.includes(key)) {
                         resource = value;
                         break;
                     }
                 }
-                if (!resource) throw new Error('資源が見つかりません');
+                if (!resource) throw new Error('資源が見つかりません（木/土/麦/羊/石）');
 
-                // Extract player
+                // Extract player - check all parts
                 let playerName = null;
-                for (const player of players) {
-                    if (parts[2].includes(player) || parts[2].includes(player.replace('プレイヤー', ''))) {
-                        playerName = player;
-                        break;
+                for (const part of parts) {
+                    // Direct match
+                    for (const player of players) {
+                        if (part.includes(player) || part.includes(player.replace('プレイヤー', ''))) {
+                            playerName = player;
+                            break;
+                        }
                     }
-                }
-                if (!playerName) {
-                    // Try to extract player number
-                    const playerMatch = parts[2].match(/(\d+)/);
+                    if (playerName) break;
+
+                    // Number match (e.g., "1" means プレイヤー1)
+                    const playerMatch = part.match(/(\d+)/);
                     if (playerMatch) {
                         const idx = parseInt(playerMatch[1]) - 1;
                         if (idx >= 0 && idx < players.length) {
                             playerName = players[idx];
+                            break;
                         }
                     }
                 }
-                if (!playerName) throw new Error('プレイヤーが見つかりません');
-
-                // Extract type
-                let type = 'settlement';
-                if (parts[3]) {
-                    if (parts[3].includes('都市') || parts[3].includes('とし')) {
-                        type = 'city';
-                    }
+                if (!playerName) {
+                    // Default to current player
+                    playerName = players[currentPlayerIndex];
+                    console.log('プレイヤー未指定、現在のプレイヤーを使用:', playerName);
                 }
 
-                // Set form values
+                // Extract type (default: settlement)
+                let type = 'settlement';
+                if (cleaned.includes('都市') || cleaned.includes('とし') || cleaned.includes('トシ')) {
+                    type = 'city';
+                }
+
+                // Set form values and add tile
                 document.getElementById('tileNumber').value = number;
                 document.getElementById('tileResource').value = resource;
                 document.getElementById('tilePlayer').value = playerName;
@@ -1012,56 +1142,101 @@
 
                 // Add tile
                 addTile();
-                document.getElementById('mapVoiceStatus').textContent = `✅ 登録しました: ${number}番 ${resources[resource].name} (${playerName})`;
+                speak(`${number}番、${resources[resource].name}を登録しました`);
+                console.log(`✅ 登録成功: ${number}番 ${resources[resource].name} ${playerName} ${type}`);
             } catch (error) {
-                document.getElementById('mapVoiceStatus').textContent = `❌ ${error.message}。もう一度お試しください`;
+                console.error('音声入力エラー:', error.message);
+                speak(error.message);
             }
         }
 
-        function togglePlayVoice() {
-            if (!recognition) initVoiceRecognition();
-            if (!recognition) {
-                alert('音声認識に対応していません');
-                return;
-            }
-
-            if (isPlayVoiceListening) {
-                stopPlayVoice();
-            } else {
-                stopMapVoice(); // Stop map voice if active
-                isPlayVoiceListening = true;
-                document.getElementById('playVoiceBtn').classList.add('listening');
-                document.getElementById('playVoiceStatus').textContent = '🎤 聞いています...';
-                recognition.start();
-            }
+        // previousPlayer function
+        function previousPlayer() {
+            currentPlayerIndex = (currentPlayerIndex - 1 + players.length) % players.length;
+            updateCurrentPlayer();
+            speak(`${players[currentPlayerIndex]}さん、サイコロを振ってください！`);
         }
 
-        function stopPlayVoice() {
-            isPlayVoiceListening = false;
-            document.getElementById('playVoiceBtn').classList.remove('listening');
+        // Player settings
+        function showPlayerSettings() {
+            const settingsHtml = players.map((player, index) => {
+                const color = scores[player]?.color || '#667eea';
+                return `
+                    <div style="margin:15px 0;padding:10px;background:white;border-radius:8px;">
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <input type="color" id="editColor${index}" value="${color}"
+                                   style="width:50px;height:40px;border:none;border-radius:5px;">
+                            <input type="text" id="editPlayer${index}" value="${player}"
+                                   style="flex:1;padding:10px;border:2px solid #dee2e6;border-radius:5px;font-size:1em;">
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:white;padding:20px;border-radius:15px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">
+                    <h2 style="margin-bottom:15px;">⚙️ プレイヤー設定</h2>
+                    ${settingsHtml}
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px;">
+                        <button onclick="cancelPlayerSettings()" style="background:#95a5a6;">キャンセル</button>
+                        <button onclick="savePlayerSettings()">保存</button>
+                    </div>
+                </div>
+            `;
+            modal.id = 'playerSettingsModal';
+            document.body.appendChild(modal);
         }
 
-        function toggleMapVoice() {
-            if (!recognition) initVoiceRecognition();
-            if (!recognition) {
-                alert('音声認識に対応していません');
-                return;
+        function savePlayerSettings() {
+            const oldPlayers = [...players];
+            const newPlayers = [];
+            const playerColors = {};
+
+            for (let i = 0; i < players.length; i++) {
+                const newName = document.getElementById(`editPlayer${i}`).value.trim() || players[i];
+                const newColor = document.getElementById(`editColor${i}`).value;
+                newPlayers.push(newName);
+                playerColors[newName] = newColor;
             }
 
-            if (isMapVoiceListening) {
-                stopMapVoice();
-            } else {
-                stopPlayVoice(); // Stop play voice if active
-                isMapVoiceListening = true;
-                document.getElementById('mapVoiceBtn').classList.add('listening');
-                document.getElementById('mapVoiceStatus').textContent = '🎤 聞いています...';
-                recognition.start();
+            // Update players array and scores
+            players = newPlayers;
+            const newScores = {};
+            for (let i = 0; i < oldPlayers.length; i++) {
+                const oldPlayer = oldPlayers[i];
+                const newPlayer = newPlayers[i];
+                newScores[newPlayer] = {
+                    ...scores[oldPlayer],
+                    color: playerColors[newPlayer]
+                };
             }
+            scores = newScores;
+
+            // Update tiles with new player names
+            tiles = tiles.map(tile => {
+                const oldIndex = oldPlayers.indexOf(tile.player);
+                if (oldIndex !== -1) {
+                    return { ...tile, player: newPlayers[oldIndex] };
+                }
+                return tile;
+            });
+            saveTiles();
+
+            // Update UI
+            updatePlayerDropdown();
+            updateCurrentPlayer();
+            updateScoreBoard();
+            renderTileList();
+
+            cancelPlayerSettings();
+            speak('プレイヤー設定を更新しました');
         }
 
-        function stopMapVoice() {
-            isMapVoiceListening = false;
-            document.getElementById('mapVoiceBtn').classList.remove('listening');
+        function cancelPlayerSettings() {
+            const modal = document.getElementById('playerSettingsModal');
+            if (modal) modal.remove();
         }
 
         // Tab Switching
