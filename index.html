@@ -595,11 +595,19 @@
 
         // Resource Names
         const resources = {
-            wood: { name: '木', color: '#8b4513' },
-            brick: { name: '土', color: '#cd5c5c' },
-            wheat: { name: '麦', color: '#f0e68c' },
-            sheep: { name: '羊', color: '#90ee90' },
-            ore: { name: '石', color: '#808080' }
+            wood: { name: '木', color: '#8b4513', icon: '🌲' },
+            brick: { name: '土', color: '#cd5c5c', icon: '🧱' },
+            wheat: { name: '麦', color: '#f0e68c', icon: '🌾' },
+            sheep: { name: '羊', color: '#90ee90', icon: '🐑' },
+            ore: { name: '石', color: '#808080', icon: '⛰️' }
+        };
+
+        // Player Colors
+        const playerColors = {
+            red: { name: '赤', hex: '#e74c3c' },
+            blue: { name: '青', hex: '#3498db' },
+            white: { name: '白', hex: '#ecf0f1' },
+            orange: { name: 'オレンジ', hex: '#f39c12' }
         };
 
         // Initialize
@@ -617,21 +625,29 @@
 
             // Load saved player names from localStorage
             const savedPlayers = JSON.parse(localStorage.getItem('catanPlayers') || '{}');
-            const savedColors = JSON.parse(localStorage.getItem('catanPlayerColors') || '{}');
+            const savedPlayerColors = JSON.parse(localStorage.getItem('catanPlayerColors') || '{}');
 
             const playerInputsDiv = document.getElementById('playerInputs');
             playerInputsDiv.innerHTML = '';
+
+            const defaultColors = ['red', 'blue', 'white', 'orange'];
+
             for (let i = 0; i < count; i++) {
                 const playerKey = `player${i + 1}`;
                 const savedName = savedPlayers[playerKey] || '';
-                const savedColor = savedColors[playerKey] || '#667eea';
+                const savedColor = savedPlayerColors[playerKey] || defaultColors[i % 4];
+
+                const colorOptions = Object.entries(playerColors).map(([key, val]) =>
+                    `<option value="${key}" ${key === savedColor ? 'selected' : ''} style="background:${val.hex};">${val.name}</option>`
+                ).join('');
 
                 const inputDiv = document.createElement('div');
                 inputDiv.className = 'player-input';
                 inputDiv.innerHTML = `
                     <div style="display:flex;gap:10px;align-items:center;">
-                        <input type="color" id="color${i + 1}" value="${savedColor}"
-                               style="width:50px;height:40px;border:none;border-radius:5px;cursor:pointer;">
+                        <select id="color${i + 1}" style="width:100px;padding:10px;border:2px solid #dee2e6;border-radius:5px;font-size:1em;">
+                            ${colorOptions}
+                        </select>
                         <input type="text" id="player${i + 1}"
                                placeholder="プレイヤー${i + 1}"
                                value="${savedName}"
@@ -645,27 +661,26 @@
 
         function startGame() {
             players = [];
-            const playerColors = {};
+            const playerColorMap = {};
             const savedPlayers = {};
+            const savedColors = {};
 
             for (let i = 0; i < playerCount; i++) {
                 const inputVal = document.getElementById(`player${i + 1}`).value.trim();
                 const name = inputVal || `プレイヤー${i + 1}`;
-                const color = document.getElementById(`color${i + 1}`).value;
+                const colorKey = document.getElementById(`color${i + 1}`).value;
 
                 players.push(name);
-                playerColors[name] = color;
+                playerColorMap[name] = playerColors[colorKey].hex;
 
                 // Save to localStorage
                 savedPlayers[`player${i + 1}`] = inputVal; // Save actual input (might be empty)
-                savedPlayers[name] = color;
+                savedColors[`player${i + 1}`] = colorKey; // Save color key (red/blue/white/orange)
             }
 
             // Save player names and colors
             localStorage.setItem('catanPlayers', JSON.stringify(savedPlayers));
-            localStorage.setItem('catanPlayerColors', JSON.stringify({
-                ...Object.fromEntries(Object.keys(savedPlayers).filter(k => k.startsWith('player')).map((k, i) => [k, document.getElementById(`color${i + 1}`).value]))
-            }));
+            localStorage.setItem('catanPlayerColors', JSON.stringify(savedColors));
 
             currentPlayerIndex = 0;
 
@@ -676,7 +691,7 @@
                     manual: 0,
                     longestRoad: false,
                     largestArmy: false,
-                    color: playerColors[player]
+                    color: playerColorMap[player]
                 };
             });
 
@@ -815,10 +830,12 @@
             if (!distribution || Object.keys(distribution).length === 0) {
                 html += '<p style="color:#6c757d;">配布なし</p>';
             } else {
-                Object.entries(distribution).forEach(([player, resources]) => {
-                    const items = Object.entries(resources).map(([res, amt]) =>
-                        `${resources[res].name} ×${amt}`
-                    ).join(', ');
+                Object.entries(distribution).forEach(([player, resourceCounts]) => {
+                    const items = Object.entries(resourceCounts).map(([res, amt]) => {
+                        const icon = resources[res].icon;
+                        const icons = icon.repeat(amt);
+                        return `<span style="font-size:1.5em;">${icons}</span> <span style="font-size:0.9em;">${resources[res].name} ×${amt}</span>`;
+                    }).join(' ');
                     html += `<div class="distribution-item"><strong>${player}:</strong> ${items}</div>`;
                 });
             }
@@ -894,9 +911,10 @@
             const board = document.getElementById('scoreBoard');
             board.innerHTML = players.map(player => {
                 const score = scores[player];
-                const basePoints = tiles.filter(t => t.player === player).reduce((sum, t) =>
-                    sum + (t.type === 'city' ? 2 : 1), 0
-                );
+                const playerTiles = tiles.filter(t => t.player === player);
+                const settlements = playerTiles.filter(t => t.type === 'settlement').length;
+                const cities = playerTiles.filter(t => t.type === 'city').length;
+                const basePoints = settlements + cities * 2;
                 const bonusPoints = (score.longestRoad ? 2 : 0) + (score.largestArmy ? 2 : 0);
                 const total = basePoints + score.manual + bonusPoints;
                 const isWinner = total >= 10;
@@ -908,8 +926,14 @@
                             ${isWinner ? '<span style="font-size:1.5em;">🏆 WINNER!</span>' : ''}
                         </div>
                         <div class="score-display">${total}点</div>
-                        <div style="font-size:0.85em;color:#6c757d;margin:5px 0;">
-                            基本:${basePoints} / 手動:${score.manual} / ボーナス:${bonusPoints}
+                        <div style="background:#f8f9fa;padding:10px;border-radius:5px;margin:10px 0;font-size:0.9em;">
+                            <div style="margin:3px 0;"><strong>🏠 開拓地:</strong> ${settlements} × 1点 = ${settlements}点</div>
+                            <div style="margin:3px 0;"><strong>🏛️ 都市:</strong> ${cities} × 2点 = ${cities * 2}点</div>
+                            <div style="margin:3px 0;"><strong>➕ 手動調整:</strong> ${score.manual}点</div>
+                            ${score.longestRoad ? '<div style="margin:3px 0;"><strong>🛣️ 最長交易路:</strong> +2点</div>' : ''}
+                            ${score.largestArmy ? '<div style="margin:3px 0;"><strong>⚔️ 最大騎士力:</strong> +2点</div>' : ''}
+                            <hr style="margin:5px 0;border:none;border-top:1px solid #dee2e6;">
+                            <div style="margin:3px 0;font-weight:bold;">合計: ${total}点</div>
                         </div>
                         <div class="score-controls">
                             <button class="score-btn" onclick="adjustScore('${player}', -1)">−</button>
@@ -1068,23 +1092,35 @@
 
         function parseTileInput(text) {
             // Parse input like "8番、木、プレイヤー1、開拓地"
+            const cleaned = text.replace(/\s/g, '');
+            const parts = cleaned.split(/、|,|。/);
+
+            console.log('音声パース:', parts);
+
+            let parsedData = {
+                number: null,
+                resource: null,
+                player: null,
+                type: 'settlement'
+            };
+
+            let errors = [];
+
+            // Extract number (must be 2-12, excluding 7)
             try {
-                // Remove spaces and split
-                const cleaned = text.replace(/\s/g, '');
-                const parts = cleaned.split(/、|,|。/);
-
-                console.log('音声パース:', parts);
-
-                // Extract number (must be 2-12, excluding 7)
                 const numberMatch = cleaned.match(/(\d+)/);
-                if (!numberMatch) throw new Error('数字が見つかりません');
+                if (!numberMatch) throw new Error('数字');
                 const number = parseInt(numberMatch[1]);
                 if (![2,3,4,5,6,8,9,10,11,12].includes(number)) {
-                    throw new Error(`${number}は無効な番号です（2-6, 8-12のみ）`);
+                    throw new Error('数字');
                 }
+                parsedData.number = number;
+            } catch (e) {
+                errors.push('数字');
+            }
 
-                // Extract resource from anywhere in the text
-                let resource = null;
+            // Extract resource from anywhere in the text
+            try {
                 const resourceMap = {
                     '木': 'wood', 'き': 'wood', 'もく': 'wood',
                     '土': 'brick', 'つち': 'brick', 'レンガ': 'brick', 'れんが': 'brick',
@@ -1092,15 +1128,21 @@
                     '羊': 'sheep', 'ひつじ': 'sheep', 'ヒツジ': 'sheep',
                     '石': 'ore', 'いし': 'ore', 'イシ': 'ore', '鉱石': 'ore'
                 };
+                let resource = null;
                 for (const [key, value] of Object.entries(resourceMap)) {
                     if (cleaned.includes(key)) {
                         resource = value;
                         break;
                     }
                 }
-                if (!resource) throw new Error('資源が見つかりません（木/土/麦/羊/石）');
+                if (!resource) throw new Error('資源');
+                parsedData.resource = resource;
+            } catch (e) {
+                errors.push('資源');
+            }
 
-                // Extract player - check all parts
+            // Extract player - check all parts
+            try {
                 let playerName = null;
                 for (const part of parts) {
                     // Direct match
@@ -1125,29 +1167,109 @@
                 if (!playerName) {
                     // Default to current player
                     playerName = players[currentPlayerIndex];
-                    console.log('プレイヤー未指定、現在のプレイヤーを使用:', playerName);
                 }
-
-                // Extract type (default: settlement)
-                let type = 'settlement';
-                if (cleaned.includes('都市') || cleaned.includes('とし') || cleaned.includes('トシ')) {
-                    type = 'city';
-                }
-
-                // Set form values and add tile
-                document.getElementById('tileNumber').value = number;
-                document.getElementById('tileResource').value = resource;
-                document.getElementById('tilePlayer').value = playerName;
-                document.getElementById('tileType').value = type;
-
-                // Add tile
-                addTile();
-                speak(`${number}番、${resources[resource].name}を登録しました`);
-                console.log(`✅ 登録成功: ${number}番 ${resources[resource].name} ${playerName} ${type}`);
-            } catch (error) {
-                console.error('音声入力エラー:', error.message);
-                speak(error.message);
+                parsedData.player = playerName;
+            } catch (e) {
+                errors.push('プレイヤー');
             }
+
+            // Extract type (default: settlement)
+            if (cleaned.includes('都市') || cleaned.includes('とし') || cleaned.includes('トシ')) {
+                parsedData.type = 'city';
+            }
+
+            // If all data parsed successfully, add tile
+            if (errors.length === 0) {
+                document.getElementById('tileNumber').value = parsedData.number;
+                document.getElementById('tileResource').value = parsedData.resource;
+                document.getElementById('tilePlayer').value = parsedData.player;
+                document.getElementById('tileType').value = parsedData.type;
+                addTile();
+                speak(`${parsedData.number}番、${resources[parsedData.resource].name}を登録しました`);
+                console.log(`✅ 登録成功: ${parsedData.number}番 ${resources[parsedData.resource].name} ${parsedData.player} ${parsedData.type}`);
+            } else {
+                // Show manual completion form
+                showTileCompletionForm(parsedData, errors);
+                speak(`${errors.join('と')}が見つかりませんでした。手動で選択してください`);
+            }
+        }
+
+        function showTileCompletionForm(parsedData, errors) {
+            const formHtml = `
+                <h3 style="color:#e74c3c;margin-bottom:15px;">⚠️ 音声入力の補完</h3>
+                <p style="margin-bottom:15px;">以下の項目を選択してください：</p>
+
+                <div style="margin:15px 0;">
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;">数字 ${errors.includes('数字') ? '<span style="color:#e74c3c;">❌</span>' : '<span style="color:#27ae60;">✓</span>'}</label>
+                    <select id="completeNumber" style="width:100%;padding:10px;border:2px solid ${errors.includes('数字') ? '#e74c3c' : '#27ae60'};border-radius:5px;">
+                        ${[2,3,4,5,6,8,9,10,11,12].map(n =>
+                            `<option value="${n}" ${parsedData.number === n ? 'selected' : ''}>${n}</option>`
+                        ).join('')}
+                    </select>
+                </div>
+
+                <div style="margin:15px 0;">
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;">資源 ${errors.includes('資源') ? '<span style="color:#e74c3c;">❌</span>' : '<span style="color:#27ae60;">✓</span>'}</label>
+                    <select id="completeResource" style="width:100%;padding:10px;border:2px solid ${errors.includes('資源') ? '#e74c3c' : '#27ae60'};border-radius:5px;">
+                        ${Object.entries(resources).map(([key, val]) =>
+                            `<option value="${key}" ${parsedData.resource === key ? 'selected' : ''}>${val.icon} ${val.name}</option>`
+                        ).join('')}
+                    </select>
+                </div>
+
+                <div style="margin:15px 0;">
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;">プレイヤー ${errors.includes('プレイヤー') ? '<span style="color:#e74c3c;">❌</span>' : '<span style="color:#27ae60;">✓</span>'}</label>
+                    <select id="completePlayer" style="width:100%;padding:10px;border:2px solid ${errors.includes('プレイヤー') ? '#e74c3c' : '#27ae60'};border-radius:5px;">
+                        ${players.map(p =>
+                            `<option value="${p}" ${parsedData.player === p ? 'selected' : ''}>${p}</option>`
+                        ).join('')}
+                    </select>
+                </div>
+
+                <div style="margin:15px 0;">
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;">種類 <span style="color:#27ae60;">✓</span></label>
+                    <select id="completeType" style="width:100%;padding:10px;border:2px solid #27ae60;border-radius:5px;">
+                        <option value="settlement" ${parsedData.type === 'settlement' ? 'selected' : ''}>🏠 開拓地</option>
+                        <option value="city" ${parsedData.type === 'city' ? 'selected' : ''}>🏛️ 都市</option>
+                    </select>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px;">
+                    <button onclick="cancelTileCompletion()" style="background:#95a5a6;">キャンセル</button>
+                    <button onclick="completeTileRegistration()">登録</button>
+                </div>
+            `;
+
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:white;padding:20px;border-radius:15px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;">
+                    ${formHtml}
+                </div>
+            `;
+            modal.id = 'tileCompletionModal';
+            document.body.appendChild(modal);
+        }
+
+        function completeTileRegistration() {
+            const number = parseInt(document.getElementById('completeNumber').value);
+            const resource = document.getElementById('completeResource').value;
+            const player = document.getElementById('completePlayer').value;
+            const type = document.getElementById('completeType').value;
+
+            document.getElementById('tileNumber').value = number;
+            document.getElementById('tileResource').value = resource;
+            document.getElementById('tilePlayer').value = player;
+            document.getElementById('tileType').value = type;
+
+            addTile();
+            speak(`${number}番、${resources[resource].name}を登録しました`);
+            cancelTileCompletion();
+        }
+
+        function cancelTileCompletion() {
+            const modal = document.getElementById('tileCompletionModal');
+            if (modal) modal.remove();
         }
 
         // previousPlayer function
@@ -1160,12 +1282,26 @@
         // Player settings
         function showPlayerSettings() {
             const settingsHtml = players.map((player, index) => {
-                const color = scores[player]?.color || '#667eea';
+                const currentColorHex = scores[player]?.color || '#667eea';
+                // Find matching color key
+                let currentColorKey = 'red';
+                for (const [key, val] of Object.entries(playerColors)) {
+                    if (val.hex === currentColorHex) {
+                        currentColorKey = key;
+                        break;
+                    }
+                }
+
+                const colorOptions = Object.entries(playerColors).map(([key, val]) =>
+                    `<option value="${key}" ${key === currentColorKey ? 'selected' : ''}>${val.name}</option>`
+                ).join('');
+
                 return `
                     <div style="margin:15px 0;padding:10px;background:white;border-radius:8px;">
                         <div style="display:flex;gap:10px;align-items:center;">
-                            <input type="color" id="editColor${index}" value="${color}"
-                                   style="width:50px;height:40px;border:none;border-radius:5px;">
+                            <select id="editColor${index}" style="width:100px;padding:10px;border:2px solid #dee2e6;border-radius:5px;font-size:1em;">
+                                ${colorOptions}
+                            </select>
                             <input type="text" id="editPlayer${index}" value="${player}"
                                    style="flex:1;padding:10px;border:2px solid #dee2e6;border-radius:5px;font-size:1em;">
                         </div>
@@ -1192,13 +1328,14 @@
         function savePlayerSettings() {
             const oldPlayers = [...players];
             const newPlayers = [];
-            const playerColors = {};
+            const playerColorMap = {};
 
             for (let i = 0; i < players.length; i++) {
                 const newName = document.getElementById(`editPlayer${i}`).value.trim() || players[i];
-                const newColor = document.getElementById(`editColor${i}`).value;
+                const colorKey = document.getElementById(`editColor${i}`).value;
+                const colorHex = playerColors[colorKey].hex;
                 newPlayers.push(newName);
-                playerColors[newName] = newColor;
+                playerColorMap[newName] = colorHex;
             }
 
             // Update players array and scores
@@ -1209,7 +1346,7 @@
                 const newPlayer = newPlayers[i];
                 newScores[newPlayer] = {
                     ...scores[oldPlayer],
-                    color: playerColors[newPlayer]
+                    color: playerColorMap[newPlayer]
                 };
             }
             scores = newScores;
