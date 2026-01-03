@@ -356,11 +356,11 @@
             <div class="player-setup">
                 <p>プレイヤー人数を選択してください：</p>
                 <div class="player-count-selector">
-                    <button class="player-count-btn" onclick="selectPlayerCount(2)">2人</button>
-                    <button class="player-count-btn" onclick="selectPlayerCount(3)">3人</button>
-                    <button class="player-count-btn selected" onclick="selectPlayerCount(4)">4人</button>
-                    <button class="player-count-btn" onclick="selectPlayerCount(5)">5人</button>
-                    <button class="player-count-btn" onclick="selectPlayerCount(6)">6人</button>
+                    <button class="player-count-btn" onclick="selectPlayerCount(2, this)">2人</button>
+                    <button class="player-count-btn" onclick="selectPlayerCount(3, this)">3人</button>
+                    <button class="player-count-btn selected" onclick="selectPlayerCount(4, this)">4人</button>
+                    <button class="player-count-btn" onclick="selectPlayerCount(5, this)">5人</button>
+                    <button class="player-count-btn" onclick="selectPlayerCount(6, this)">6人</button>
                 </div>
 
                 <div class="player-inputs" id="playerInputs">
@@ -417,14 +417,22 @@
             selectPlayerCount(4);
         }
 
-        function selectPlayerCount(count) {
+        function selectPlayerCount(count, target = null) {
             playerCount = count;
 
             // ボタンの選択状態を更新
-            document.querySelectorAll('.player-count-btn').forEach(btn => {
+            document.querySelectorAll('.player-count-btn').forEach((btn, index) => {
                 btn.classList.remove('selected');
+                // デフォルトで4人（インデックス2）を選択
+                if (!target && index === 2) {
+                    btn.classList.add('selected');
+                }
             });
-            event.target.classList.add('selected');
+
+            // クリックされた場合はそのボタンを選択
+            if (target) {
+                target.classList.add('selected');
+            }
 
             // プレイヤー名入力欄を生成
             const playerInputsDiv = document.getElementById('playerInputs');
@@ -458,7 +466,7 @@
 
             // 最初のプレイヤーを表示
             updateCurrentPlayer();
-            speak(`${players[currentPlayerIndex]}さんの番です。サイコロを振ってください。`);
+            speak(`${players[currentPlayerIndex]}さん、サイコロを振ってください！`);
         }
 
         function showSetup() {
@@ -479,7 +487,7 @@
 
             // 次のプレイヤーをアナウンス
             setTimeout(() => {
-                speak(`次は${players[currentPlayerIndex]}さんの番です`);
+                speak(`${players[currentPlayerIndex]}さん、サイコロを振ってください！`);
             }, 1500);
         }
 
