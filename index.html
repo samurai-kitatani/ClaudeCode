@@ -180,6 +180,113 @@
             min-height: 24px;
         }
 
+        /* プレイヤー設定画面 */
+        .setup-screen {
+            display: block;
+        }
+
+        .game-screen {
+            display: none;
+        }
+
+        .setup-screen.hidden,
+        .game-screen.hidden {
+            display: none;
+        }
+
+        .player-setup {
+            margin: 20px 0;
+        }
+
+        .player-count-selector {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .player-count-btn {
+            padding: 12px 24px;
+            background: #ecf0f1;
+            border: 2px solid #bdc3c7;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .player-count-btn.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .player-inputs {
+            margin: 20px 0;
+        }
+
+        .player-input {
+            margin: 10px 0;
+        }
+
+        .player-input label {
+            display: block;
+            text-align: left;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        .player-input input {
+            width: 100%;
+            padding: 12px;
+            font-size: 1em;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+        }
+
+        .player-input input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* 現在のプレイヤー表示 */
+        .current-player {
+            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            font-size: clamp(1.2em, 5vw, 1.5em);
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(243, 156, 18, 0.3);
+        }
+
+        .settings-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .settings-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
         .info {
             margin-top: 25px;
             color: #666;
@@ -204,28 +311,60 @@
     </style>
 </head>
 <body>
+    <button class="settings-btn" onclick="showSetup()" style="display: none;">⚙️</button>
+
     <div class="container">
-        <h1>🎲 カタン サイコロ 🎲</h1>
+        <!-- プレイヤー設定画面 -->
+        <div class="setup-screen" id="setupScreen">
+            <h1>🎲 カタン サイコロ 🎲</h1>
+            <h2>プレイヤー設定</h2>
 
-        <div class="dice-container">
-            <div class="dice red" id="dice1" onclick="rollDice()">?</div>
-            <div class="dice yellow" id="dice2" onclick="rollDice()">?</div>
+            <div class="player-setup">
+                <p>プレイヤー人数を選択してください：</p>
+                <div class="player-count-selector">
+                    <button class="player-count-btn" onclick="selectPlayerCount(2)">2人</button>
+                    <button class="player-count-btn" onclick="selectPlayerCount(3)">3人</button>
+                    <button class="player-count-btn selected" onclick="selectPlayerCount(4)">4人</button>
+                    <button class="player-count-btn" onclick="selectPlayerCount(5)">5人</button>
+                    <button class="player-count-btn" onclick="selectPlayerCount(6)">6人</button>
+                </div>
+
+                <div class="player-inputs" id="playerInputs">
+                    <!-- プレイヤー名入力欄が動的に生成される -->
+                </div>
+
+                <button onclick="startGame()" style="width: 100%; max-width: 300px; margin: 20px auto;">ゲーム開始</button>
+            </div>
         </div>
 
-        <div class="result" id="result">—</div>
-        <div class="robber-text" id="robberText">⚠️ 盗賊が来た！ ⚠️</div>
+        <!-- ゲーム画面 -->
+        <div class="game-screen hidden" id="gameScreen">
+            <h1>🎲 カタン サイコロ 🎲</h1>
 
-        <div class="button-container">
-            <button id="rollButton" onclick="rollDice()">サイコロを振る</button>
-            <button id="voiceButton" onclick="toggleVoiceRecognition()">🎤 音声</button>
-        </div>
+            <div class="current-player" id="currentPlayer">
+                プレイヤー1の番
+            </div>
 
-        <div class="voice-status" id="voiceStatus"></div>
+            <div class="dice-container">
+                <div class="dice red" id="dice1" onclick="rollDice()">?</div>
+                <div class="dice yellow" id="dice2" onclick="rollDice()">?</div>
+            </div>
 
-        <div class="info">
-            <p>カタンのルール：2つのサイコロの合計値で資源を獲得！</p>
-            <p>合計が7の場合は盗賊が動きます。</p>
-            <p>「サイコロ！」や「振る！」と話しかけてみてください 🎤</p>
+            <div class="result" id="result">—</div>
+            <div class="robber-text" id="robberText">⚠️ 盗賊が来た！ ⚠️</div>
+
+            <div class="button-container">
+                <button id="rollButton" onclick="rollDice()">サイコロを振る</button>
+                <button id="voiceButton" onclick="toggleVoiceRecognition()">🎤 音声</button>
+            </div>
+
+            <div class="voice-status" id="voiceStatus"></div>
+
+            <div class="info">
+                <p>カタンのルール：2つのサイコロの合計値で資源を獲得！</p>
+                <p>合計が7の場合は盗賊が動きます。</p>
+                <p>「サイコロ！」や「振る！」と話しかけてみてください 🎤</p>
+            </div>
         </div>
     </div>
 
@@ -233,6 +372,82 @@
         let isRolling = false;
         let recognition = null;
         let isListening = false;
+
+        // プレイヤー管理
+        let players = [];
+        let currentPlayerIndex = 0;
+        let playerCount = 4;
+
+        // プレイヤー設定の初期化
+        function initPlayerSetup() {
+            selectPlayerCount(4);
+        }
+
+        function selectPlayerCount(count) {
+            playerCount = count;
+
+            // ボタンの選択状態を更新
+            document.querySelectorAll('.player-count-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+
+            // プレイヤー名入力欄を生成
+            const playerInputsDiv = document.getElementById('playerInputs');
+            playerInputsDiv.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                const inputDiv = document.createElement('div');
+                inputDiv.className = 'player-input';
+                inputDiv.innerHTML = `
+                    <label for="player${i + 1}">プレイヤー${i + 1}の名前：</label>
+                    <input type="text" id="player${i + 1}" placeholder="プレイヤー${i + 1}" value="プレイヤー${i + 1}">
+                `;
+                playerInputsDiv.appendChild(inputDiv);
+            }
+        }
+
+        function startGame() {
+            // プレイヤー名を取得
+            players = [];
+            for (let i = 0; i < playerCount; i++) {
+                const name = document.getElementById(`player${i + 1}`).value.trim();
+                players.push(name || `プレイヤー${i + 1}`);
+            }
+
+            currentPlayerIndex = 0;
+
+            // 画面を切り替え
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            document.querySelector('.settings-btn').style.display = 'flex';
+
+            // 最初のプレイヤーを表示
+            updateCurrentPlayer();
+            speak(`${players[currentPlayerIndex]}さんの番です。サイコロを振ってください。`);
+        }
+
+        function showSetup() {
+            document.getElementById('setupScreen').classList.remove('hidden');
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.querySelector('.settings-btn').style.display = 'none';
+            stopVoiceRecognition();
+        }
+
+        function updateCurrentPlayer() {
+            const currentPlayerDiv = document.getElementById('currentPlayer');
+            currentPlayerDiv.textContent = `${players[currentPlayerIndex]}さんの番`;
+        }
+
+        function nextPlayer() {
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+            updateCurrentPlayer();
+
+            // 次のプレイヤーをアナウンス
+            setTimeout(() => {
+                speak(`次は${players[currentPlayerIndex]}さんの番です`);
+            }, 1500);
+        }
 
         // 音声認識の初期化
         function initVoiceRecognition() {
@@ -386,12 +601,17 @@
 
                 button.disabled = false;
                 isRolling = false;
+
+                // プレイヤーが設定されている場合、次のプレイヤーへ
+                if (players.length > 0) {
+                    setTimeout(nextPlayer, 1000);
+                }
             }, 500);
         }
 
-        // ページ読み込み時に1回振る
+        // ページ読み込み時の初期化
         window.addEventListener('load', () => {
-            setTimeout(rollDice, 300);
+            initPlayerSetup();
         });
     </script>
 </body>
