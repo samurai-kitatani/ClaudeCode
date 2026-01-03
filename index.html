@@ -637,9 +637,9 @@
 
             <!-- Tabs -->
             <div class="tabs">
-                <button class="tab active" onclick="switchTab('play')">Play</button>
-                <button class="tab" onclick="switchTab('map')">Map</button>
-                <button class="tab" onclick="switchTab('score')">Score</button>
+                <button class="tab active" onclick="switchTab('play', event)">Play</button>
+                <button class="tab" onclick="switchTab('map', event)">Map</button>
+                <button class="tab" onclick="switchTab('score', event)">Score</button>
             </div>
 
             <!-- Play Tab -->
@@ -742,7 +742,7 @@
         const playerColors = {
             red: { name: '赤', hex: '#e74c3c' },
             blue: { name: '青', hex: '#3498db' },
-            white: { name: '白', hex: '#ecf0f1' },
+            white: { name: '白', hex: '#95a5a6' },  // Changed to gray for visibility
             orange: { name: 'オレンジ', hex: '#f39c12' }
         };
 
@@ -895,9 +895,8 @@
                 };
             });
 
-            // Load tiles from localStorage
-            const savedTiles = localStorage.getItem('catanTiles');
-            if (savedTiles) tiles = JSON.parse(savedTiles);
+            // Reset tiles for new game
+            tiles = [];
 
             document.getElementById('setupScreen').classList.add('hidden');
             document.getElementById('gameScreen').classList.remove('hidden');
@@ -1050,8 +1049,8 @@
                 text += '配布なし';
             } else {
                 const parts = [];
-                Object.entries(distribution).forEach(([player, resources]) => {
-                    const items = Object.entries(resources).map(([res, amt]) =>
+                Object.entries(distribution).forEach(([player, playerResources]) => {
+                    const items = Object.entries(playerResources).map(([res, amt]) =>
                         `${resources[res].name}を${amt}つ`
                     ).join('、');
                     parts.push(`${player}に${items}`);
@@ -1839,11 +1838,20 @@
         }
 
         // Tab Switching
-        function switchTab(tab) {
+        function switchTab(tab, event) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
 
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // Find the tab button by matching the onclick attribute
+                document.querySelectorAll('.tab').forEach(t => {
+                    if (t.getAttribute('onclick').includes(tab)) {
+                        t.classList.add('active');
+                    }
+                });
+            }
             document.getElementById(tab + 'Tab').classList.add('active');
 
             if (tab === 'map') renderTileList();
