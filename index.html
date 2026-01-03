@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カタン サイコロ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .dice-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .dice {
+            width: 100px;
+            height: 100px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            transition: transform 0.1s;
+        }
+
+        .dice.red {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .dice.yellow {
+            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+        }
+
+        .dice.rolling {
+            animation: roll 0.5s ease-in-out;
+        }
+
+        @keyframes roll {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(90deg) scale(0.9); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            75% { transform: rotate(270deg) scale(0.9); }
+        }
+
+        .result {
+            margin: 30px 0;
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            transition: all 0.3s ease;
+        }
+
+        .result.robber {
+            color: #e74c3c;
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .robber-text {
+            color: #e74c3c;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .robber-text.show {
+            opacity: 1;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .info {
+            margin-top: 30px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 カタン サイコロ 🎲</h1>
+
+        <div class="dice-container">
+            <div class="dice red" id="dice1">?</div>
+            <div class="dice yellow" id="dice2">?</div>
+        </div>
+
+        <div class="result" id="result">—</div>
+        <div class="robber-text" id="robberText">⚠️ 盗賊が来た！ ⚠️</div>
+
+        <button id="rollButton" onclick="rollDice()">サイコロを振る</button>
+
+        <div class="info">
+            <p>カタンのルール：2つのサイコロの合計値で資源を獲得！</p>
+            <p>合計が7の場合は盗賊が動きます。</p>
+        </div>
+    </div>
+
+    <script>
+        let isRolling = false;
+
+        function rollDice() {
+            if (isRolling) return;
+
+            isRolling = true;
+            const button = document.getElementById('rollButton');
+            const dice1 = document.getElementById('dice1');
+            const dice2 = document.getElementById('dice2');
+            const result = document.getElementById('result');
+            const robberText = document.getElementById('robberText');
+
+            button.disabled = true;
+
+            // アニメーション開始
+            dice1.classList.add('rolling');
+            dice2.classList.add('rolling');
+
+            // ランダムな値を表示（アニメーション中）
+            let counter = 0;
+            const animationInterval = setInterval(() => {
+                dice1.textContent = Math.floor(Math.random() * 6) + 1;
+                dice2.textContent = Math.floor(Math.random() * 6) + 1;
+                counter++;
+
+                if (counter >= 10) {
+                    clearInterval(animationInterval);
+                }
+            }, 50);
+
+            // 最終結果を表示
+            setTimeout(() => {
+                // 最終的なサイコロの値を決定
+                const value1 = Math.floor(Math.random() * 6) + 1;
+                const value2 = Math.floor(Math.random() * 6) + 1;
+                const total = value1 + value2;
+
+                dice1.textContent = value1;
+                dice2.textContent = value2;
+
+                // アニメーション終了
+                dice1.classList.remove('rolling');
+                dice2.classList.remove('rolling');
+
+                // 合計値を表示
+                result.textContent = `合計: ${total}`;
+
+                // 7の場合は特別な表示
+                if (total === 7) {
+                    result.classList.add('robber');
+                    robberText.classList.add('show');
+                } else {
+                    result.classList.remove('robber');
+                    robberText.classList.remove('show');
+                }
+
+                button.disabled = false;
+                isRolling = false;
+            }, 500);
+        }
+
+        // ページ読み込み時に1回振る
+        window.addEventListener('load', () => {
+            setTimeout(rollDice, 300);
+        });
+    </script>
+</body>
+</html>
