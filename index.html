@@ -674,55 +674,37 @@
 
             <!-- Map Tab -->
             <div class="tab-content" id="mapTab">
-                <h2 style="margin-bottom:15px;">土地登録</h2>
-                <div class="map-form">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>数字</label>
-                            <select id="tileNumber">
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="6">6</option>
-                                <option value="8">8</option>
-                                <option value="9">9</option>
-                                <option value="10">10</option>
-                                <option value="11">11</option>
-                                <option value="12">12</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>資源</label>
-                            <select id="tileResource">
-                                <option value="wood">木</option>
-                                <option value="brick">土</option>
-                                <option value="wheat">麦</option>
-                                <option value="sheep">羊</option>
-                                <option value="ore">石</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>プレイヤー</label>
-                            <select id="tilePlayer"></select>
-                        </div>
-                        <div class="form-group">
-                            <label>種類</label>
-                            <select id="tileType">
-                                <option value="settlement">開拓地</option>
-                                <option value="city">都市</option>
-                            </select>
-                        </div>
-                    </div>
-                    <button onclick="addTile()">➕ 土地を追加</button>
-                    <div class="voice-help" style="background:#e8f5e9;border:2px solid #4caf50;">
-                        🎤 音声入力 常時ON<br>
-                        📢 例: 「8番、木、プレイヤー1、開拓地」
-                    </div>
+                <h2 style="margin-bottom:15px;">🗺️ マップ状況</h2>
+                <div class="voice-help" style="background:#e8f5e9;border:2px solid #4caf50;margin-bottom:20px;">
+                    🎤 音声入力 常時ON<br>
+                    📢 例: 「8番、木、赤、開拓地」「6番、麦、青、都市」
                 </div>
-                <h3 style="margin-top:20px;margin-bottom:10px;">登録済み土地</h3>
+                <!-- Hidden form elements for addTile() function -->
+                <select id="tileNumber" style="display:none;">
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                    <option value="11">11</option>
+                    <option value="12">12</option>
+                </select>
+                <select id="tileResource" style="display:none;">
+                    <option value="wood">木</option>
+                    <option value="brick">土</option>
+                    <option value="wheat">麦</option>
+                    <option value="sheep">羊</option>
+                    <option value="ore">石</option>
+                </select>
+                <select id="tilePlayer" style="display:none;"></select>
+                <select id="tileType" style="display:none;">
+                    <option value="settlement">開拓地</option>
+                    <option value="city">都市</option>
+                </select>
+                <h3 style="margin-bottom:10px;">📍 登録済み土地</h3>
                 <div class="tile-list" id="tileList"></div>
             </div>
 
@@ -899,11 +881,11 @@
 
             currentPlayerIndex = 0;
 
-            // Initialize scores with extended data
+            // Initialize scores with extended data (start with 1 point)
             scores = {};
             players.forEach(player => {
                 scores[player] = {
-                    manual: 0,
+                    manual: 1,
                     roads: 0,
                     knights: 0,
                     developmentCards: 0,
@@ -1106,18 +1088,47 @@
         function renderTileList() {
             const list = document.getElementById('tileList');
             if (tiles.length === 0) {
-                list.innerHTML = '<p style="color:#6c757d;text-align:center;padding:20px;">土地が登録されていません</p>';
+                list.innerHTML = '<p style="color:#6c757d;text-align:center;padding:20px;">🎤 音声で土地を登録してください</p>';
                 return;
             }
-            list.innerHTML = tiles.map(tile => `
-                <div class="tile-item">
-                    <div class="tile-info">
-                        <strong>${tile.number}</strong> - ${resources[tile.resource].name}
-                        (${tile.player} / ${tile.type === 'city' ? '都市' : '開拓地'})
+
+            // Group by player
+            const tilesByPlayer = {};
+            players.forEach(p => tilesByPlayer[p] = []);
+            tiles.forEach(tile => {
+                if (tilesByPlayer[tile.player]) {
+                    tilesByPlayer[tile.player].push(tile);
+                }
+            });
+
+            const fixedColors = ['red', 'blue', 'white', 'orange'];
+            list.innerHTML = players.map((player, playerIndex) => {
+                const playerTiles = tilesByPlayer[player] || [];
+                if (playerTiles.length === 0) return '';
+
+                const colorKey = fixedColors[playerIndex % 4];
+                const colorHex = playerColors[colorKey].hex;
+
+                return `
+                    <div style="margin-bottom:20px;">
+                        <div style="background:${colorHex};color:${colorKey === 'white' ? '#333' : 'white'};padding:10px;border-radius:5px;font-weight:bold;margin-bottom:8px;">
+                            ${player} の土地 (${playerTiles.length}箇所)
+                        </div>
+                        ${playerTiles.map(tile => `
+                            <div class="tile-item" style="border-left-color:${colorHex};">
+                                <div class="tile-info" style="display:flex;align-items:center;gap:8px;">
+                                    <span style="font-size:1.3em;min-width:35px;text-align:center;background:#f8f9fa;padding:3px 6px;border-radius:4px;font-weight:bold;">${tile.number}</span>
+                                    <span style="font-size:1.5em;">${resources[tile.resource].icon}</span>
+                                    <span style="font-size:0.9em;color:#6c757d;">${resources[tile.resource].name}</span>
+                                    <span style="font-size:1.2em;">${tile.type === 'city' ? '🏛️' : '🏠'}</span>
+                                    <span style="font-size:0.85em;color:#6c757d;">${tile.type === 'city' ? '都市' : '開拓地'}</span>
+                                </div>
+                                <button class="tile-delete" onclick="deleteTile(${tile.id})">削除</button>
+                            </div>
+                        `).join('')}
                     </div>
-                    <button class="tile-delete" onclick="deleteTile(${tile.id})">削除</button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function saveTiles() {
@@ -1138,38 +1149,12 @@
                 const isWinner = total >= 10;
 
                 return `
-                    <div class="player-score ${isWinner ? 'winner' : ''}">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                            <strong style="font-size:1.2em;">${player}</strong>
-                            ${isWinner ? '<span style="font-size:1.5em;">🏆 WINNER!</span>' : ''}
-                        </div>
-                        <div class="score-display">${total}点</div>
-                        <div style="background:#f8f9fa;padding:10px;border-radius:5px;margin:10px 0;font-size:0.9em;">
-                            <div style="margin:3px 0;"><strong>🏠 開拓地:</strong> ${settlements} × 1点 = ${settlements}点</div>
-                            <div style="margin:3px 0;"><strong>🏛️ 都市:</strong> ${cities} × 2点 = ${cities * 2}点</div>
-                            <div style="margin:3px 0;"><strong>➕ 手動調整:</strong> ${score.manual}点</div>
-                            ${score.longestRoad ? '<div style="margin:3px 0;"><strong>🛣️ 最長交易路:</strong> +2点</div>' : ''}
-                            ${score.largestArmy ? '<div style="margin:3px 0;"><strong>⚔️ 最大騎士力:</strong> +2点</div>' : ''}
-                            <hr style="margin:5px 0;border:none;border-top:1px solid #dee2e6;">
-                            <div style="margin:3px 0;font-weight:bold;">合計: ${total}点</div>
-                            <hr style="margin:5px 0;border:none;border-top:1px solid #dee2e6;">
-                            <div style="margin:3px 0;color:#6c757d;"><strong>🛤️ 街道:</strong> ${score.roads || 0}本</div>
-                            <div style="margin:3px 0;color:#6c757d;"><strong>⚔️ 騎士:</strong> ${score.knights || 0}枚</div>
-                            <div style="margin:3px 0;color:#6c757d;"><strong>🎴 発展カード:</strong> ${score.developmentCards || 0}枚</div>
-                        </div>
-                        <div class="score-controls">
-                            <button class="score-btn" onclick="adjustScore('${player}', -1)">−</button>
-                            <span>手動調整</span>
-                            <button class="score-btn" onclick="adjustScore('${player}', 1)">+</button>
-                        </div>
-                        <div class="special-cards">
-                            <div class="special-card ${score.longestRoad ? 'active' : ''}"
-                                 onclick="toggleSpecial('${player}', 'longestRoad')">
-                                最長交易路 +2
-                            </div>
-                            <div class="special-card ${score.largestArmy ? 'active' : ''}"
-                                 onclick="toggleSpecial('${player}', 'largestArmy')">
-                                最大騎士力 +2
+                    <div class="player-score ${isWinner ? 'winner' : ''}" style="border-left-color:${score.color};">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <strong style="font-size:1.3em;">${player}</strong>
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div class="score-display" style="font-size:2em;margin:0;">${total}点</div>
+                                ${isWinner ? '<span style="font-size:1.5em;">🏆</span>' : ''}
                             </div>
                         </div>
                     </div>
@@ -1207,7 +1192,7 @@
             players.forEach((p, i) => {
                 const colorKey = fixedColors[i % 4];
                 scores[p] = {
-                    manual: 0,
+                    manual: 1,
                     roads: 0,
                     knights: 0,
                     developmentCards: 0,
@@ -1596,7 +1581,11 @@
                             const fixedColors = ['red', 'blue', 'white', 'orange'];
                             const colorKey = fixedColors[i % 4];
                             const colorHex = playerColors[colorKey].hex;
-                            return `<button onclick="setTempPlayer('${p}')" id="player${i}" style="padding:8px;font-size:0.8em;background:${parsedData.player === p ? colorHex : '#ecf0f1'};color:${parsedData.player === p ? 'white' : '#333'};border:none;border-radius:5px;">${p}</button>`;
+                            const isSelected = parsedData.player === p;
+                            const textColor = colorKey === 'white' ? '#333' : 'white';
+                            const opacity = isSelected ? '1' : '0.6';
+                            const border = isSelected ? '3px solid #FFD700' : '2px solid rgba(0,0,0,0.1)';
+                            return `<button onclick="setTempPlayer('${p}')" id="player${i}" style="padding:10px;font-size:0.85em;background:${colorHex};color:${textColor};border:${border};border-radius:5px;opacity:${opacity};font-weight:bold;">${playerColors[colorKey].name}</button>`;
                         }).join('')}
                     </div>
                 </div>
@@ -1655,9 +1644,11 @@
                 const btn = document.getElementById(`player${i}`);
                 if (btn) {
                     const colorKey = fixedColors[i % 4];
-                    const colorHex = playerColors[colorKey].hex;
-                    btn.style.background = p === player ? colorHex : '#ecf0f1';
-                    btn.style.color = p === player ? 'white' : '#333';
+                    const isSelected = p === player;
+                    const textColor = colorKey === 'white' ? '#333' : 'white';
+                    btn.style.opacity = isSelected ? '1' : '0.6';
+                    btn.style.border = isSelected ? '3px solid #FFD700' : '2px solid rgba(0,0,0,0.1)';
+                    btn.style.color = textColor;
                 }
             });
         }
