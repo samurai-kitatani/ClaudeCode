@@ -453,6 +453,160 @@
         .resource-wheat { background-color: #f0e68c; color: #333; }
         .resource-sheep { background-color: #90ee90; color: #333; }
         .resource-ore { background-color: #808080; color: white; }
+
+        /* Mobile Optimization */
+        @media (max-width: 600px) {
+            body {
+                padding-bottom: 50px;
+            }
+
+            .header {
+                padding: 10px 15px;
+            }
+
+            .header h1 {
+                font-size: 1.2em;
+                margin-bottom: 3px;
+            }
+
+            .tab {
+                padding: 12px 8px;
+                font-size: 0.9em;
+            }
+
+            .tab-content {
+                padding: 12px;
+            }
+
+            .current-player {
+                padding: 8px 15px;
+                margin-bottom: 12px;
+                font-size: 1.1em;
+            }
+
+            .dice-container {
+                gap: 15px;
+                margin: 15px 0;
+            }
+
+            .dice {
+                width: clamp(70px, 20vw, 85px);
+                height: clamp(70px, 20vw, 85px);
+                font-size: clamp(30px, 9vw, 40px);
+            }
+
+            .result {
+                font-size: 1.5em;
+                margin: 12px 0;
+            }
+
+            .distribution {
+                padding: 10px;
+                margin: 12px 0;
+                min-height: 60px;
+            }
+
+            .distribution h3 {
+                font-size: 0.95em;
+                margin-bottom: 6px;
+            }
+
+            .distribution-item {
+                padding: 6px;
+                margin: 4px 0;
+                font-size: 0.9em;
+            }
+
+            .voice-status, .voice-help {
+                padding: 8px;
+                margin: 8px 0;
+                font-size: 0.8em;
+            }
+
+            button {
+                padding: 12px 20px;
+                font-size: 1em;
+                margin: 8px auto;
+            }
+
+            .player-score {
+                padding: 10px;
+                margin: 8px 0;
+            }
+
+            .player-score .score-display {
+                font-size: 1.3em;
+            }
+
+            .player-score > div:nth-child(3) {
+                padding: 8px;
+                font-size: 0.85em;
+            }
+
+            .player-score > div:nth-child(3) > div {
+                margin: 2px 0 !important;
+            }
+
+            .score-controls {
+                margin-top: 8px;
+            }
+
+            .special-cards {
+                margin-top: 8px;
+            }
+
+            .special-card {
+                padding: 6px;
+                font-size: 0.75em;
+            }
+
+            .tile-item {
+                padding: 8px;
+                margin: 6px 0;
+                font-size: 0.9em;
+            }
+
+            .tile-delete {
+                padding: 6px 12px;
+                font-size: 0.85em;
+            }
+
+            .map-form {
+                padding: 12px;
+                margin-bottom: 15px;
+            }
+
+            .form-group label {
+                font-size: 0.85em;
+                margin-bottom: 4px;
+            }
+
+            .form-group select,
+            .form-group input {
+                padding: 8px;
+                font-size: 0.95em;
+            }
+
+            /* Compact score ranking */
+            #playScoreRanking > div {
+                padding: 6px !important;
+                margin: 3px 0 !important;
+                font-size: 0.85em !important;
+            }
+
+            /* Compact player settings inputs */
+            .player-input input {
+                padding: 8px !important;
+                font-size: 0.9em !important;
+            }
+
+            .voice-toggle {
+                top: 12px;
+                right: 12px;
+                padding: 6px 10px;
+                font-size: 0.8em;
+            }
+        }
     </style>
 </head>
 <body>
@@ -502,8 +656,8 @@
                 </div>
 
                 <!-- Score Ranking -->
-                <div style="background:#f8f9fa;border-radius:10px;padding:15px;margin:20px 0;">
-                    <h3 style="margin-bottom:10px;color:#495057;">🏆 スコアランキング</h3>
+                <div style="background:#f8f9fa;border-radius:10px;padding:12px;margin:15px 0;">
+                    <h3 style="margin-bottom:8px;color:#495057;font-size:1em;">🏆 スコアランキング</h3>
                     <div id="playScoreRanking"></div>
                 </div>
 
@@ -1342,49 +1496,61 @@
             }
         }
 
+        let tempTileData = { number: null, resource: null, player: null, type: 'settlement' };
+
         function showTileCompletionForm(parsedData, errors) {
+            tempTileData = { ...parsedData };
+
             const formHtml = `
-                <h3 style="color:#e74c3c;margin-bottom:15px;">⚠️ 音声入力の補完</h3>
-                <p style="margin-bottom:15px;">以下の項目を選択してください：</p>
+                <h3 style="color:#e74c3c;margin-bottom:10px;font-size:1.1em;">⚠️ 音声入力の補完</h3>
 
-                <div style="margin:15px 0;">
-                    <label style="display:block;margin-bottom:5px;font-weight:bold;">数字 ${errors.includes('数字') ? '<span style="color:#e74c3c;">❌</span>' : '<span style="color:#27ae60;">✓</span>'}</label>
-                    <select id="completeNumber" style="width:100%;padding:10px;border:2px solid ${errors.includes('数字') ? '#e74c3c' : '#27ae60'};border-radius:5px;">
+                <div style="margin:10px 0;">
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;font-size:0.9em;">
+                        数字 ${errors.includes('数字') ? '<span style="color:#e74c3c;">❌</span>' : `<span style="color:#27ae60;">✓ ${parsedData.number}</span>`}
+                    </label>
+                    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;">
                         ${[2,3,4,5,6,8,9,10,11,12].map(n =>
-                            `<option value="${n}" ${parsedData.number === n ? 'selected' : ''}>${n}</option>`
+                            `<button onclick="setTempNumber(${n})" id="num${n}" style="padding:8px;font-size:0.9em;background:${parsedData.number === n ? '#27ae60' : '#ecf0f1'};color:${parsedData.number === n ? 'white' : '#333'};border:none;border-radius:5px;">${n}</button>`
                         ).join('')}
-                    </select>
+                    </div>
                 </div>
 
-                <div style="margin:15px 0;">
-                    <label style="display:block;margin-bottom:5px;font-weight:bold;">資源 ${errors.includes('資源') ? '<span style="color:#e74c3c;">❌</span>' : '<span style="color:#27ae60;">✓</span>'}</label>
-                    <select id="completeResource" style="width:100%;padding:10px;border:2px solid ${errors.includes('資源') ? '#e74c3c' : '#27ae60'};border-radius:5px;">
+                <div style="margin:10px 0;">
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;font-size:0.9em;">
+                        資源 ${errors.includes('資源') ? '<span style="color:#e74c3c;">❌</span>' : `<span style="color:#27ae60;">✓</span>`}
+                    </label>
+                    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;">
                         ${Object.entries(resources).map(([key, val]) =>
-                            `<option value="${key}" ${parsedData.resource === key ? 'selected' : ''}>${val.icon} ${val.name}</option>`
+                            `<button onclick="setTempResource('${key}')" id="res${key}" style="padding:8px;font-size:1.2em;background:${parsedData.resource === key ? '#27ae60' : '#ecf0f1'};border:none;border-radius:5px;" title="${val.name}">${val.icon}</button>`
                         ).join('')}
-                    </select>
+                    </div>
                 </div>
 
-                <div style="margin:15px 0;">
-                    <label style="display:block;margin-bottom:5px;font-weight:bold;">プレイヤー ${errors.includes('プレイヤー') ? '<span style="color:#e74c3c;">❌</span>' : '<span style="color:#27ae60;">✓</span>'}</label>
-                    <select id="completePlayer" style="width:100%;padding:10px;border:2px solid ${errors.includes('プレイヤー') ? '#e74c3c' : '#27ae60'};border-radius:5px;">
-                        ${players.map(p =>
-                            `<option value="${p}" ${parsedData.player === p ? 'selected' : ''}>${p}</option>`
-                        ).join('')}
-                    </select>
+                <div style="margin:10px 0;">
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;font-size:0.9em;">
+                        プレイヤー ${errors.includes('プレイヤー') ? '<span style="color:#e74c3c;">❌</span>' : `<span style="color:#27ae60;">✓</span>`}
+                    </label>
+                    <div style="display:grid;grid-template-columns:repeat(${Math.min(players.length, 4)},1fr);gap:5px;">
+                        ${players.map((p, i) => {
+                            const fixedColors = ['red', 'blue', 'white', 'orange'];
+                            const colorKey = fixedColors[i % 4];
+                            const colorHex = playerColors[colorKey].hex;
+                            return `<button onclick="setTempPlayer('${p}')" id="player${i}" style="padding:8px;font-size:0.8em;background:${parsedData.player === p ? colorHex : '#ecf0f1'};color:${parsedData.player === p ? 'white' : '#333'};border:none;border-radius:5px;">${p}</button>`;
+                        }).join('')}
+                    </div>
                 </div>
 
-                <div style="margin:15px 0;">
-                    <label style="display:block;margin-bottom:5px;font-weight:bold;">種類 <span style="color:#27ae60;">✓</span></label>
-                    <select id="completeType" style="width:100%;padding:10px;border:2px solid #27ae60;border-radius:5px;">
-                        <option value="settlement" ${parsedData.type === 'settlement' ? 'selected' : ''}>🏠 開拓地</option>
-                        <option value="city" ${parsedData.type === 'city' ? 'selected' : ''}>🏛️ 都市</option>
-                    </select>
+                <div style="margin:10px 0;">
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;font-size:0.9em;">種類 <span style="color:#27ae60;">✓</span></label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+                        <button onclick="setTempType('settlement')" id="typeSettlement" style="padding:10px;background:${parsedData.type === 'settlement' ? '#27ae60' : '#ecf0f1'};color:${parsedData.type === 'settlement' ? 'white' : '#333'};border:none;border-radius:5px;">🏠 開拓地</button>
+                        <button onclick="setTempType('city')" id="typeCity" style="padding:10px;background:${parsedData.type === 'city' ? '#27ae60' : '#ecf0f1'};color:${parsedData.type === 'city' ? 'white' : '#333'};border:none;border-radius:5px;">🏛️ 都市</button>
+                    </div>
                 </div>
 
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px;">
-                    <button onclick="cancelTileCompletion()" style="background:#95a5a6;">キャンセル</button>
-                    <button onclick="completeTileRegistration()">登録</button>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px;">
+                    <button onclick="cancelTileCompletion()" style="background:#95a5a6;padding:12px;">キャンセル</button>
+                    <button onclick="completeTileRegistration()" style="padding:12px;">登録</button>
                 </div>
             `;
 
@@ -1399,19 +1565,67 @@
             document.body.appendChild(modal);
         }
 
-        function completeTileRegistration() {
-            const number = parseInt(document.getElementById('completeNumber').value);
-            const resource = document.getElementById('completeResource').value;
-            const player = document.getElementById('completePlayer').value;
-            const type = document.getElementById('completeType').value;
+        function setTempNumber(num) {
+            tempTileData.number = num;
+            // Update button styles
+            [2,3,4,5,6,8,9,10,11,12].forEach(n => {
+                const btn = document.getElementById(`num${n}`);
+                if (btn) {
+                    btn.style.background = n === num ? '#27ae60' : '#ecf0f1';
+                    btn.style.color = n === num ? 'white' : '#333';
+                }
+            });
+        }
 
-            document.getElementById('tileNumber').value = number;
-            document.getElementById('tileResource').value = resource;
-            document.getElementById('tilePlayer').value = player;
-            document.getElementById('tileType').value = type;
+        function setTempResource(resource) {
+            tempTileData.resource = resource;
+            Object.keys(resources).forEach(key => {
+                const btn = document.getElementById(`res${key}`);
+                if (btn) {
+                    btn.style.background = key === resource ? '#27ae60' : '#ecf0f1';
+                }
+            });
+        }
+
+        function setTempPlayer(player) {
+            tempTileData.player = player;
+            const fixedColors = ['red', 'blue', 'white', 'orange'];
+            players.forEach((p, i) => {
+                const btn = document.getElementById(`player${i}`);
+                if (btn) {
+                    const colorKey = fixedColors[i % 4];
+                    const colorHex = playerColors[colorKey].hex;
+                    btn.style.background = p === player ? colorHex : '#ecf0f1';
+                    btn.style.color = p === player ? 'white' : '#333';
+                }
+            });
+        }
+
+        function setTempType(type) {
+            tempTileData.type = type;
+            ['settlement', 'city'].forEach(t => {
+                const btn = document.getElementById(`type${t.charAt(0).toUpperCase() + t.slice(1)}`);
+                if (btn) {
+                    btn.style.background = t === type ? '#27ae60' : '#ecf0f1';
+                    btn.style.color = t === type ? 'white' : '#333';
+                }
+            });
+        }
+
+        function completeTileRegistration() {
+            // Validate all fields are selected
+            if (!tempTileData.number || !tempTileData.resource || !tempTileData.player) {
+                speak('すべての項目を選択してください');
+                return;
+            }
+
+            document.getElementById('tileNumber').value = tempTileData.number;
+            document.getElementById('tileResource').value = tempTileData.resource;
+            document.getElementById('tilePlayer').value = tempTileData.player;
+            document.getElementById('tileType').value = tempTileData.type;
 
             addTile();
-            speak(`${number}番、${resources[resource].name}を登録しました`);
+            speak(`${tempTileData.number}番、${resources[tempTileData.resource].name}を登録しました`);
             cancelTileCompletion();
         }
 
