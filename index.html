@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <title>カタン サイコロ</title>
+    <title>カタン ゲームマスター</title>
     <style>
         * {
             margin: 0;
@@ -13,35 +12,104 @@
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
             user-select: none;
-            -webkit-user-select: none;
         }
 
         body {
             font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 15px;
-            overflow-x: hidden;
+            padding-bottom: 70px;
         }
 
         .container {
             background: white;
-            border-radius: 20px;
-            padding: 30px 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            text-align: center;
-            max-width: 500px;
-            width: 100%;
+            min-height: 100vh;
+            max-width: 600px;
+            margin: 0 auto;
             position: relative;
         }
 
-        h1 {
-            color: #333;
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            font-size: clamp(1.3em, 5vw, 1.6em);
+            margin-bottom: 5px;
+        }
+
+        .voice-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.3);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            cursor: pointer;
+        }
+
+        .voice-toggle.on {
+            background: #27ae60;
+        }
+
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            color: #6c757d;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Dice Section */
+        .current-player {
+            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
             margin-bottom: 20px;
-            font-size: clamp(1.5em, 5vw, 2em);
+            font-size: 1.3em;
+            font-weight: bold;
+            text-align: center;
         }
 
         .dice-container {
@@ -49,37 +117,26 @@
             justify-content: center;
             gap: 20px;
             margin: 30px 0;
-            flex-wrap: wrap;
-            touch-action: manipulation;
         }
 
         .dice {
-            width: clamp(90px, 25vw, 120px);
-            height: clamp(90px, 25vw, 120px);
-            border-radius: 15px;
+            width: clamp(80px, 22vw, 100px);
+            height: clamp(80px, 22vw, 100px);
+            border-radius: 12px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: clamp(40px, 12vw, 60px);
+            font-size: clamp(35px, 10vw, 50px);
             font-weight: bold;
             color: white;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-            transition: transform 0.1s;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
             cursor: pointer;
-            touch-action: manipulation;
+            transition: transform 0.1s;
         }
 
-        .dice:active {
-            transform: scale(0.95);
-        }
-
-        .dice.red {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-        }
-
-        .dice.yellow {
-            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
-        }
+        .dice:active { transform: scale(0.95); }
+        .dice.red { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); }
+        .dice.yellow { background: linear-gradient(135deg, #f39c12 0%, #d68910 100%); }
 
         .dice.rolling {
             animation: roll 0.5s ease-in-out;
@@ -93,121 +150,211 @@
         }
 
         .result {
-            margin: 20px 0;
-            font-size: clamp(2em, 8vw, 2.5em);
+            text-align: center;
+            font-size: 2em;
             font-weight: bold;
             color: #333;
-            transition: all 0.3s ease;
+            margin: 20px 0;
         }
 
         .result.robber {
             color: #e74c3c;
-            animation: pulse 0.5s ease-in-out;
+            animation: pulse 0.5s;
         }
 
         @keyframes pulse {
-            0%, 100% { transform: scale(1); }
             50% { transform: scale(1.1); }
         }
 
-        .robber-text {
-            color: #e74c3c;
-            font-size: clamp(1em, 4vw, 1.2em);
-            font-weight: bold;
-            margin-top: 10px;
-            opacity: 0;
-            transition: opacity 0.3s ease;
+        .distribution {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            min-height: 80px;
         }
 
-        .robber-text.show {
-            opacity: 1;
+        .distribution h3 {
+            color: #495057;
+            font-size: 1.1em;
+            margin-bottom: 10px;
         }
 
-        .button-container {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 20px;
+        .distribution-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
         }
 
         button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 18px 50px;
-            font-size: clamp(1.1em, 4vw, 1.3em);
-            border-radius: 50px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 25px;
             cursor: pointer;
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-            transition: all 0.2s ease;
             font-weight: bold;
-            touch-action: manipulation;
-            min-height: 56px;
-            flex: 1;
-            min-width: 140px;
+            width: 100%;
+            max-width: 300px;
+            margin: 10px auto;
+            display: block;
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
         }
 
         button:active {
             transform: scale(0.98);
-            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
         }
 
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+        /* Map Section */
+        .map-form {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
         }
 
-        #voiceButton {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
         }
 
-        #voiceButton.listening {
-            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
-            animation: pulse-listening 1.5s infinite;
+        .form-group {
+            margin-bottom: 10px;
         }
 
-        @keyframes pulse-listening {
-            0%, 100% { box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4); }
-            50% { box-shadow: 0 5px 25px rgba(39, 174, 96, 0.8); }
-        }
-
-        .voice-status {
-            margin-top: 10px;
-            font-size: clamp(0.9em, 3.5vw, 1em);
-            color: #666;
-            min-height: 24px;
-        }
-
-        /* プレイヤー設定画面 */
-        .setup-screen {
+        .form-group label {
             display: block;
-        }
-
-        .game-screen {
-            display: block;
-        }
-
-        .setup-screen.hidden,
-        .game-screen.hidden {
-            display: none !important;
-        }
-
-        .player-setup {
-            margin: 20px 0;
-        }
-
-        .player-setup > p {
-            color: #2c3e50;
+            color: #495057;
             font-weight: bold;
-            font-size: 1.1em;
-            margin-bottom: 15px;
+            margin-bottom: 5px;
+            font-size: 0.9em;
         }
 
-        h2 {
-            color: #2c3e50;
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        .tile-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .tile-item {
+            background: white;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tile-info {
+            flex: 1;
+        }
+
+        .tile-delete {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        /* Score Section */
+        .score-board {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .player-score {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .player-score.winner {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            animation: celebrate 1s infinite;
+        }
+
+        @keyframes celebrate {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .score-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+        }
+
+        .score-btn {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            font-size: 1.2em;
+            border-radius: 50%;
+            min-width: unset;
+        }
+
+        .score-display {
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            flex: 1;
+        }
+
+        .special-cards {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .special-card {
+            flex: 1;
+            padding: 8px;
+            background: #e9ecef;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.85em;
+            transition: all 0.3s;
+        }
+
+        .special-card.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        /* Setup Screen */
+        .setup-screen {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .setup-screen h2 {
+            color: #333;
             margin-bottom: 20px;
         }
 
@@ -220,29 +367,20 @@
         }
 
         .player-count-btn {
-            padding: 12px 24px;
-            background: #ffffff;
+            padding: 12px 20px;
+            background: white;
             border: 3px solid #3498db;
             border-radius: 10px;
-            font-size: 1.1em;
+            font-size: 1em;
             font-weight: bold;
             color: #3498db;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
-        }
-
-        .player-count-btn:hover {
-            background: #ebf5fb;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
         }
 
         .player-count-btn.selected {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #667eea;
             color: white;
             border-color: #667eea;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
 
         .player-inputs {
@@ -253,430 +391,464 @@
             margin: 10px 0;
         }
 
-        .player-input label {
-            display: block;
-            text-align: left;
-            margin-bottom: 8px;
-            color: #2c3e50;
-            font-weight: bold;
-            font-size: 1em;
-        }
-
         .player-input input {
             width: 100%;
+            max-width: 300px;
             padding: 12px;
-            font-size: 1em;
             border: 2px solid #3498db;
-            border-radius: 10px;
-            box-sizing: border-box;
-            transition: all 0.3s ease;
-            background: #ffffff;
+            border-radius: 8px;
+            font-size: 1em;
         }
 
-        .player-input input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        .hidden {
+            display: none !important;
         }
 
-        /* 現在のプレイヤー表示 */
-        .current-player {
-            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            font-size: clamp(1.2em, 5vw, 1.5em);
-            font-weight: bold;
-            box-shadow: 0 5px 15px rgba(243, 156, 18, 0.3);
-        }
-
-        .settings-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-            border: none;
-            color: white;
-            font-size: 1.3em;
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 3px 10px rgba(52, 152, 219, 0.3);
-            z-index: 10;
-        }
-
-        .settings-btn:hover {
-            background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
-            transform: scale(1.1);
-            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.5);
-        }
-
-        .settings-btn:active {
-            transform: scale(0.95);
-        }
-
-        .info {
-            margin-top: 25px;
-            color: #666;
-            font-size: clamp(0.8em, 3.5vw, 0.9em);
-            line-height: 1.5;
-        }
-
-        .info p {
-            margin: 5px 0;
-        }
-
-        @media (max-width: 400px) {
-            .container {
-                padding: 20px 15px;
-            }
-
-            .dice-container {
-                gap: 15px;
-                margin: 20px 0;
-            }
-        }
+        /* Resource Colors */
+        .resource-wood { background-color: #8b4513; color: white; }
+        .resource-brick { background-color: #cd5c5c; color: white; }
+        .resource-wheat { background-color: #f0e68c; color: #333; }
+        .resource-sheep { background-color: #90ee90; color: #333; }
+        .resource-ore { background-color: #808080; color: white; }
     </style>
 </head>
 <body>
     <div class="container">
-        <button class="settings-btn" id="settingsBtn" onclick="showSetup()">⚙️</button>
-
-        <!-- プレイヤー設定画面 -->
+        <!-- Setup Screen -->
         <div class="setup-screen" id="setupScreen">
-            <h1>🎲 カタン サイコロ 🎲</h1>
+            <h1>🎲 カタン ゲームマスター</h1>
             <h2>プレイヤー設定</h2>
-
-            <div class="player-setup">
-                <p>プレイヤー人数を選択してください：</p>
-                <div class="player-count-selector">
-                    <button class="player-count-btn" onclick="selectPlayerCount(2, this)">2人</button>
-                    <button class="player-count-btn" onclick="selectPlayerCount(3, this)">3人</button>
-                    <button class="player-count-btn selected" onclick="selectPlayerCount(4, this)">4人</button>
-                    <button class="player-count-btn" onclick="selectPlayerCount(5, this)">5人</button>
-                    <button class="player-count-btn" onclick="selectPlayerCount(6, this)">6人</button>
-                </div>
-
-                <div class="player-inputs" id="playerInputs">
-                    <!-- プレイヤー名入力欄が動的に生成される -->
-                </div>
-
-                <button onclick="startGame()" style="width: 100%; max-width: 300px; margin: 20px auto; font-size: 1.2em; padding: 15px;">🎮 ゲーム開始</button>
+            <p>プレイヤー人数を選択：</p>
+            <div class="player-count-selector">
+                <button class="player-count-btn" onclick="selectPlayerCount(2, this)">2人</button>
+                <button class="player-count-btn" onclick="selectPlayerCount(3, this)">3人</button>
+                <button class="player-count-btn selected" onclick="selectPlayerCount(4, this)">4人</button>
+                <button class="player-count-btn" onclick="selectPlayerCount(5, this)">5人</button>
+                <button class="player-count-btn" onclick="selectPlayerCount(6, this)">6人</button>
             </div>
+            <div class="player-inputs" id="playerInputs"></div>
+            <button onclick="startGame()">🎮 ゲーム開始</button>
         </div>
 
-        <!-- ゲーム画面 -->
-        <div class="game-screen hidden" id="gameScreen">
-            <h1>🎲 カタン サイコロ 🎲</h1>
-
-            <div class="current-player" id="currentPlayer">
-                プレイヤー1のばん
+        <!-- Main Game Screen -->
+        <div id="gameScreen" class="hidden">
+            <!-- Header -->
+            <div class="header">
+                <h1>🎲 カタン ゲームマスター</h1>
+                <button class="voice-toggle" id="voiceToggle" onclick="toggleVoice()">🔇 音声OFF</button>
             </div>
 
-            <div class="dice-container">
-                <div class="dice red" id="dice1" onclick="rollDice()">?</div>
-                <div class="dice yellow" id="dice2" onclick="rollDice()">?</div>
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('play')">Play</button>
+                <button class="tab" onclick="switchTab('map')">Map</button>
+                <button class="tab" onclick="switchTab('score')">Score</button>
             </div>
 
-            <div class="result" id="result">—</div>
-            <div class="robber-text" id="robberText">⚠️ 盗賊が来た！ ⚠️</div>
-
-            <div class="button-container">
-                <button id="rollButton" onclick="rollDice()">サイコロを振る</button>
-                <button id="voiceButton" onclick="toggleVoiceRecognition()">🎤 音声</button>
+            <!-- Play Tab -->
+            <div class="tab-content active" id="playTab">
+                <div class="current-player" id="currentPlayer"></div>
+                <div class="dice-container">
+                    <div class="dice red" id="dice1" onclick="rollDice()">?</div>
+                    <div class="dice yellow" id="dice2" onclick="rollDice()">?</div>
+                </div>
+                <div class="result" id="result">—</div>
+                <div class="distribution" id="distribution">
+                    <h3>資源配布</h3>
+                    <p style="color:#6c757d;">サイコロを振ってください</p>
+                </div>
+                <button onclick="rollDice()">サイコロを振る</button>
+                <button onclick="nextPlayer()" style="background:#6c757d;">次のプレイヤー</button>
             </div>
 
-            <div class="voice-status" id="voiceStatus"></div>
+            <!-- Map Tab -->
+            <div class="tab-content" id="mapTab">
+                <h2 style="margin-bottom:15px;">土地登録</h2>
+                <div class="map-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>数字</label>
+                            <select id="tileNumber">
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>資源</label>
+                            <select id="tileResource">
+                                <option value="wood">木</option>
+                                <option value="brick">土</option>
+                                <option value="wheat">麦</option>
+                                <option value="sheep">羊</option>
+                                <option value="ore">石</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>プレイヤー</label>
+                            <select id="tilePlayer"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>種類</label>
+                            <select id="tileType">
+                                <option value="settlement">開拓地</option>
+                                <option value="city">都市</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="addTile()">➕ 土地を追加</button>
+                </div>
+                <h3 style="margin-top:20px;margin-bottom:10px;">登録済み土地</h3>
+                <div class="tile-list" id="tileList"></div>
+            </div>
 
-            <div class="info">
-                <p>カタンのルール：2つのサイコロの合計値で資源を獲得！</p>
-                <p>合計が7の場合は盗賊が動きます。</p>
-                <p>「サイコロ！」や「振る！」と話しかけてみてください 🎤</p>
+            <!-- Score Tab -->
+            <div class="tab-content" id="scoreTab">
+                <h2 style="margin-bottom:15px;">スコアボード</h2>
+                <div class="score-board" id="scoreBoard"></div>
+                <button onclick="resetScores()" style="background:#e74c3c;margin-top:20px;">スコアリセット</button>
             </div>
         </div>
     </div>
 
     <script>
-        let isRolling = false;
-        let recognition = null;
-        let isListening = false;
-
-        // プレイヤー管理
+        // Game State
         let players = [];
         let currentPlayerIndex = 0;
         let playerCount = 4;
+        let tiles = [];
+        let scores = {};
+        let voiceEnabled = false;
+        let isRolling = false;
 
-        // プレイヤー設定の初期化
+        // Resource Names
+        const resources = {
+            wood: { name: '木', color: '#8b4513' },
+            brick: { name: '土', color: '#cd5c5c' },
+            wheat: { name: '麦', color: '#f0e68c' },
+            sheep: { name: '羊', color: '#90ee90' },
+            ore: { name: '石', color: '#808080' }
+        };
+
+        // Initialize
         function initPlayerSetup() {
-            console.log('initPlayerSetup called');
             selectPlayerCount(4);
-            console.log('Player setup initialized');
         }
 
         function selectPlayerCount(count, target = null) {
             playerCount = count;
-
-            // ボタンの選択状態を更新
             document.querySelectorAll('.player-count-btn').forEach((btn, index) => {
                 btn.classList.remove('selected');
-                // デフォルトで4人（インデックス2）を選択
-                if (!target && index === 2) {
-                    btn.classList.add('selected');
-                }
+                if (!target && index === 2) btn.classList.add('selected');
             });
+            if (target) target.classList.add('selected');
 
-            // クリックされた場合はそのボタンを選択
-            if (target) {
-                target.classList.add('selected');
-            }
-
-            // プレイヤー名入力欄を生成
             const playerInputsDiv = document.getElementById('playerInputs');
             playerInputsDiv.innerHTML = '';
-
             for (let i = 0; i < count; i++) {
                 const inputDiv = document.createElement('div');
                 inputDiv.className = 'player-input';
-                inputDiv.innerHTML = `
-                    <label for="player${i + 1}">プレイヤー${i + 1}の名前：</label>
-                    <input type="text" id="player${i + 1}" placeholder="プレイヤー${i + 1}" value="プレイヤー${i + 1}">
-                `;
+                inputDiv.innerHTML = `<input type="text" id="player${i + 1}" placeholder="プレイヤー${i + 1}" value="プレイヤー${i + 1}">`;
                 playerInputsDiv.appendChild(inputDiv);
             }
         }
 
         function startGame() {
-            console.log('startGame called');
-
-            // プレイヤー名を取得
             players = [];
             for (let i = 0; i < playerCount; i++) {
-                const name = document.getElementById(`player${i + 1}`).value.trim();
-                players.push(name || `プレイヤー${i + 1}`);
+                const name = document.getElementById(`player${i + 1}`).value.trim() || `プレイヤー${i + 1}`;
+                players.push(name);
             }
-
             currentPlayerIndex = 0;
-            console.log('Players:', players);
 
-            // 画面を切り替え
-            const setupScreen = document.getElementById('setupScreen');
-            const gameScreen = document.getElementById('gameScreen');
-            const settingsBtn = document.getElementById('settingsBtn');
+            // Initialize scores
+            scores = {};
+            players.forEach(player => {
+                scores[player] = {
+                    manual: 0,
+                    longestRoad: false,
+                    largestArmy: false
+                };
+            });
 
-            console.log('Setup screen:', setupScreen);
-            console.log('Game screen:', gameScreen);
-            console.log('Settings button:', settingsBtn);
+            // Load tiles from localStorage
+            const savedTiles = localStorage.getItem('catanTiles');
+            if (savedTiles) tiles = JSON.parse(savedTiles);
 
-            setupScreen.classList.add('hidden');
-            gameScreen.classList.remove('hidden');
-            settingsBtn.style.display = 'flex';
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
 
-            console.log('Screen switched. Game screen classes:', gameScreen.className);
-
-            // 最初のプレイヤーを表示
+            updatePlayerDropdown();
             updateCurrentPlayer();
+            updateScoreBoard();
             speak(`${players[currentPlayerIndex]}さん、サイコロを振ってください！`);
         }
 
-        function showSetup() {
-            document.getElementById('setupScreen').classList.remove('hidden');
-            document.getElementById('gameScreen').classList.add('hidden');
-            document.getElementById('settingsBtn').style.display = 'none';
-            stopVoiceRecognition();
+        function updatePlayerDropdown() {
+            const select = document.getElementById('tilePlayer');
+            select.innerHTML = players.map(p => `<option value="${p}">${p}</option>`).join('');
         }
 
         function updateCurrentPlayer() {
-            const currentPlayerDiv = document.getElementById('currentPlayer');
-            currentPlayerDiv.textContent = `${players[currentPlayerIndex]}さんのばん`;
+            document.getElementById('currentPlayer').textContent = `${players[currentPlayerIndex]}さんのばん`;
         }
 
         function nextPlayer() {
             currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
             updateCurrentPlayer();
-
-            // 次のプレイヤーをアナウンス
-            setTimeout(() => {
-                speak(`${players[currentPlayerIndex]}さん、サイコロを振ってください！`);
-            }, 1500);
+            speak(`${players[currentPlayerIndex]}さん、サイコロを振ってください！`);
         }
 
-        // 音声認識の初期化
-        function initVoiceRecognition() {
-            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                recognition.lang = 'ja-JP';
-                recognition.continuous = true;
-                recognition.interimResults = false;
-
-                recognition.onresult = (event) => {
-                    const last = event.results.length - 1;
-                    const text = event.results[last][0].transcript.toLowerCase();
-                    document.getElementById('voiceStatus').textContent = `聞き取り: "${event.results[last][0].transcript}"`;
-
-                    // サイコロを振るトリガーワード
-                    if (text.includes('サイコロ') || text.includes('さいころ') ||
-                        text.includes('振る') || text.includes('ふる') ||
-                        text.includes('ダイス') || text.includes('だいす') ||
-                        text.includes('ロール') || text.includes('ろーる')) {
-                        rollDice();
-                    }
-                };
-
-                recognition.onerror = (event) => {
-                    console.error('音声認識エラー:', event.error);
-                    if (event.error === 'not-allowed') {
-                        document.getElementById('voiceStatus').textContent = '⚠️ マイクの許可が必要です';
-                    } else {
-                        document.getElementById('voiceStatus').textContent = '音声認識エラー';
-                    }
-                    stopVoiceRecognition();
-                };
-
-                recognition.onend = () => {
-                    if (isListening) {
-                        // 自動的に再開
-                        try {
-                            recognition.start();
-                        } catch (e) {
-                            console.log('音声認識の再開に失敗');
-                        }
-                    }
-                };
-            }
-        }
-
-        function toggleVoiceRecognition() {
-            if (!recognition) {
-                initVoiceRecognition();
-            }
-
-            if (!recognition) {
-                alert('お使いのブラウザは音声認識に対応していません。Chrome、Edge、Safariをお試しください。');
-                return;
-            }
-
-            if (isListening) {
-                stopVoiceRecognition();
-            } else {
-                startVoiceRecognition();
-            }
-        }
-
-        function startVoiceRecognition() {
-            try {
-                recognition.start();
-                isListening = true;
-                document.getElementById('voiceButton').classList.add('listening');
-                document.getElementById('voiceStatus').textContent = '🎤 聞いています...';
-            } catch (e) {
-                console.error('音声認識の開始に失敗:', e);
-            }
-        }
-
-        function stopVoiceRecognition() {
-            if (recognition) {
-                recognition.stop();
-            }
-            isListening = false;
-            document.getElementById('voiceButton').classList.remove('listening');
-            document.getElementById('voiceStatus').textContent = '';
-        }
-
-        // 音声読み上げ
-        function speak(text) {
-            if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'ja-JP';
-                utterance.rate = 1.0;
-                utterance.pitch = 1.0;
-                window.speechSynthesis.speak(utterance);
-            }
-        }
-
+        // Dice Roll
         function rollDice() {
-            console.log('rollDice called');
-
-            if (isRolling) {
-                console.log('Already rolling, returning');
-                return;
-            }
-
+            if (isRolling) return;
             isRolling = true;
-            const button = document.getElementById('rollButton');
+
             const dice1 = document.getElementById('dice1');
             const dice2 = document.getElementById('dice2');
             const result = document.getElementById('result');
-            const robberText = document.getElementById('robberText');
 
-            console.log('Dice elements:', { dice1, dice2, button, result, robberText });
-
-            button.disabled = true;
-
-            // アニメーション開始
             dice1.classList.add('rolling');
             dice2.classList.add('rolling');
 
-            // ランダムな値を表示（アニメーション中）
             let counter = 0;
             const animationInterval = setInterval(() => {
                 dice1.textContent = Math.floor(Math.random() * 6) + 1;
                 dice2.textContent = Math.floor(Math.random() * 6) + 1;
                 counter++;
-
-                if (counter >= 10) {
-                    clearInterval(animationInterval);
-                }
+                if (counter >= 10) clearInterval(animationInterval);
             }, 50);
 
-            // 最終結果を表示
             setTimeout(() => {
-                // 最終的なサイコロの値を決定
                 const value1 = Math.floor(Math.random() * 6) + 1;
                 const value2 = Math.floor(Math.random() * 6) + 1;
                 const total = value1 + value2;
 
                 dice1.textContent = value1;
                 dice2.textContent = value2;
-
-                // アニメーション終了
                 dice1.classList.remove('rolling');
                 dice2.classList.remove('rolling');
 
-                // 合計値を表示
                 result.textContent = `合計: ${total}`;
+                result.classList.toggle('robber', total === 7);
 
-                // 7の場合は特別な表示
                 if (total === 7) {
-                    result.classList.add('robber');
-                    robberText.classList.add('show');
-                    speak(`${total}、盗賊が来ました！`);
+                    showDistribution(null, true);
+                    speak(`${total}、盗賊が来ました！手札8枚以上はバーストです`);
                 } else {
-                    result.classList.remove('robber');
-                    robberText.classList.remove('show');
-                    speak(`合計${total}です`);
+                    const distribution = calculateDistribution(total);
+                    showDistribution(distribution);
+                    speakDistribution(total, distribution);
                 }
 
-                button.disabled = false;
                 isRolling = false;
-
-                // プレイヤーが設定されている場合、次のプレイヤーへ
-                if (players.length > 0) {
-                    setTimeout(nextPlayer, 1000);
-                }
             }, 500);
         }
 
-        // ページ読み込み時の初期化
-        window.addEventListener('load', () => {
-            initPlayerSetup();
-        });
+        function calculateDistribution(number) {
+            const distribution = {};
+            tiles.filter(t => t.number === number).forEach(tile => {
+                if (!distribution[tile.player]) distribution[tile.player] = {};
+                const resource = tile.resource;
+                const amount = tile.type === 'city' ? 2 : 1;
+                distribution[tile.player][resource] = (distribution[tile.player][resource] || 0) + amount;
+            });
+            return distribution;
+        }
+
+        function showDistribution(distribution, isRobber = false) {
+            const div = document.getElementById('distribution');
+            if (isRobber) {
+                div.innerHTML = '<h3>資源配布</h3><div style="color:#e74c3c;font-weight:bold;padding:10px;">⚠️ 盗賊！資源なし</div>';
+                return;
+            }
+
+            let html = '<h3>資源配布</h3>';
+            if (!distribution || Object.keys(distribution).length === 0) {
+                html += '<p style="color:#6c757d;">配布なし</p>';
+            } else {
+                Object.entries(distribution).forEach(([player, resources]) => {
+                    const items = Object.entries(resources).map(([res, amt]) =>
+                        `${resources[res].name} ×${amt}`
+                    ).join(', ');
+                    html += `<div class="distribution-item"><strong>${player}:</strong> ${items}</div>`;
+                });
+            }
+            div.innerHTML = html;
+        }
+
+        function speakDistribution(number, distribution) {
+            if (!voiceEnabled) return;
+
+            let text = `${number}番。`;
+            if (Object.keys(distribution).length === 0) {
+                text += '配布なし';
+            } else {
+                const parts = [];
+                Object.entries(distribution).forEach(([player, resources]) => {
+                    const items = Object.entries(resources).map(([res, amt]) =>
+                        `${resources[res].name}を${amt}つ`
+                    ).join('、');
+                    parts.push(`${player}に${items}`);
+                });
+                text += parts.join('。');
+            }
+            speak(text);
+        }
+
+        // Map Management
+        function addTile() {
+            const tile = {
+                number: parseInt(document.getElementById('tileNumber').value),
+                resource: document.getElementById('tileResource').value,
+                player: document.getElementById('tilePlayer').value,
+                type: document.getElementById('tileType').value,
+                id: Date.now()
+            };
+            tiles.push(tile);
+            saveTiles();
+            renderTileList();
+        }
+
+        function deleteTile(id) {
+            tiles = tiles.filter(t => t.id !== id);
+            saveTiles();
+            renderTileList();
+        }
+
+        function renderTileList() {
+            const list = document.getElementById('tileList');
+            if (tiles.length === 0) {
+                list.innerHTML = '<p style="color:#6c757d;text-align:center;padding:20px;">土地が登録されていません</p>';
+                return;
+            }
+            list.innerHTML = tiles.map(tile => `
+                <div class="tile-item">
+                    <div class="tile-info">
+                        <strong>${tile.number}</strong> - ${resources[tile.resource].name}
+                        (${tile.player} / ${tile.type === 'city' ? '都市' : '開拓地'})
+                    </div>
+                    <button class="tile-delete" onclick="deleteTile(${tile.id})">削除</button>
+                </div>
+            `).join('');
+        }
+
+        function saveTiles() {
+            localStorage.setItem('catanTiles', JSON.stringify(tiles));
+        }
+
+        // Score Management
+        function updateScoreBoard() {
+            const board = document.getElementById('scoreBoard');
+            board.innerHTML = players.map(player => {
+                const score = scores[player];
+                const basePoints = tiles.filter(t => t.player === player).reduce((sum, t) =>
+                    sum + (t.type === 'city' ? 2 : 1), 0
+                );
+                const bonusPoints = (score.longestRoad ? 2 : 0) + (score.largestArmy ? 2 : 0);
+                const total = basePoints + score.manual + bonusPoints;
+                const isWinner = total >= 10;
+
+                return `
+                    <div class="player-score ${isWinner ? 'winner' : ''}">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <strong style="font-size:1.2em;">${player}</strong>
+                            ${isWinner ? '<span style="font-size:1.5em;">🏆 WINNER!</span>' : ''}
+                        </div>
+                        <div class="score-display">${total}点</div>
+                        <div style="font-size:0.85em;color:#6c757d;margin:5px 0;">
+                            基本:${basePoints} / 手動:${score.manual} / ボーナス:${bonusPoints}
+                        </div>
+                        <div class="score-controls">
+                            <button class="score-btn" onclick="adjustScore('${player}', -1)">−</button>
+                            <span>手動調整</span>
+                            <button class="score-btn" onclick="adjustScore('${player}', 1)">+</button>
+                        </div>
+                        <div class="special-cards">
+                            <div class="special-card ${score.longestRoad ? 'active' : ''}"
+                                 onclick="toggleSpecial('${player}', 'longestRoad')">
+                                最長交易路 +2
+                            </div>
+                            <div class="special-card ${score.largestArmy ? 'active' : ''}"
+                                 onclick="toggleSpecial('${player}', 'largestArmy')">
+                                最大騎士力 +2
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Check for winner
+            const winner = players.find(p => {
+                const score = scores[p];
+                const base = tiles.filter(t => t.player === p).reduce((s, t) => s + (t.type === 'city' ? 2 : 1), 0);
+                const bonus = (score.longestRoad ? 2 : 0) + (score.largestArmy ? 2 : 0);
+                return base + score.manual + bonus >= 10;
+            });
+
+            if (winner) speak(`${winner}さんが勝利しました！おめでとうございます！`);
+        }
+
+        function adjustScore(player, amount) {
+            scores[player].manual = Math.max(0, scores[player].manual + amount);
+            updateScoreBoard();
+        }
+
+        function toggleSpecial(player, type) {
+            // Only one player can have each special card
+            if (!scores[player][type]) {
+                players.forEach(p => scores[p][type] = false);
+            }
+            scores[player][type] = !scores[player][type];
+            updateScoreBoard();
+        }
+
+        function resetScores() {
+            if (!confirm('スコアをリセットしますか？')) return;
+            players.forEach(p => {
+                scores[p] = { manual: 0, longestRoad: false, largestArmy: false };
+            });
+            updateScoreBoard();
+        }
+
+        // Voice
+        function toggleVoice() {
+            voiceEnabled = !voiceEnabled;
+            const btn = document.getElementById('voiceToggle');
+            btn.textContent = voiceEnabled ? '🔊 音声ON' : '🔇 音声OFF';
+            btn.classList.toggle('on', voiceEnabled);
+        }
+
+        function speak(text) {
+            if (!voiceEnabled || !('speechSynthesis' in window)) return;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ja-JP';
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Tab Switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+
+            if (tab === 'map') renderTileList();
+            if (tab === 'score') updateScoreBoard();
+        }
+
+        // Initialize on load
+        window.addEventListener('load', initPlayerSetup);
     </script>
 </body>
 </html>
