@@ -187,12 +187,12 @@
         }
 
         .game-screen {
-            display: none;
+            display: block;
         }
 
         .setup-screen.hidden,
         .game-screen.hidden {
-            display: none;
+            display: none !important;
         }
 
         .player-setup {
@@ -376,7 +376,7 @@
             <h1>🎲 カタン サイコロ 🎲</h1>
 
             <div class="current-player" id="currentPlayer">
-                プレイヤー1の番
+                プレイヤー1のばん
             </div>
 
             <div class="dice-container">
@@ -493,7 +493,7 @@
 
         function updateCurrentPlayer() {
             const currentPlayerDiv = document.getElementById('currentPlayer');
-            currentPlayerDiv.textContent = `${players[currentPlayerIndex]}さんの番`;
+            currentPlayerDiv.textContent = `${players[currentPlayerIndex]}さんのばん`;
         }
 
         function nextPlayer() {
