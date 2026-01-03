@@ -2,13 +2,18 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>カタン サイコロ</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         body {
@@ -18,13 +23,14 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 15px;
+            overflow-x: hidden;
         }
 
         .container {
             background: white;
             border-radius: 20px;
-            padding: 40px;
+            padding: 30px 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             text-align: center;
             max-width: 500px;
@@ -33,30 +39,37 @@
 
         h1 {
             color: #333;
-            margin-bottom: 30px;
-            font-size: 2em;
+            margin-bottom: 20px;
+            font-size: clamp(1.5em, 5vw, 2em);
         }
 
         .dice-container {
             display: flex;
             justify-content: center;
-            gap: 30px;
-            margin: 40px 0;
+            gap: 20px;
+            margin: 30px 0;
             flex-wrap: wrap;
+            touch-action: manipulation;
         }
 
         .dice {
-            width: 100px;
-            height: 100px;
+            width: clamp(90px, 25vw, 120px);
+            height: clamp(90px, 25vw, 120px);
             border-radius: 15px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 48px;
+            font-size: clamp(40px, 12vw, 60px);
             font-weight: bold;
             color: white;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
             transition: transform 0.1s;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .dice:active {
+            transform: scale(0.95);
         }
 
         .dice.red {
@@ -79,8 +92,8 @@
         }
 
         .result {
-            margin: 30px 0;
-            font-size: 2.5em;
+            margin: 20px 0;
+            font-size: clamp(2em, 8vw, 2.5em);
             font-weight: bold;
             color: #333;
             transition: all 0.3s ease;
@@ -98,7 +111,7 @@
 
         .robber-text {
             color: #e74c3c;
-            font-size: 1.2em;
+            font-size: clamp(1em, 4vw, 1.2em);
             font-weight: bold;
             margin-top: 10px;
             opacity: 0;
@@ -113,22 +126,22 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 15px 40px;
-            font-size: 1.2em;
+            padding: 18px 50px;
+            font-size: clamp(1.1em, 4vw, 1.3em);
             border-radius: 50px;
             cursor: pointer;
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             font-weight: bold;
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 7px 20px rgba(102, 126, 234, 0.6);
+            touch-action: manipulation;
+            min-height: 56px;
+            width: 100%;
+            max-width: 300px;
         }
 
         button:active {
-            transform: translateY(0);
+            transform: scale(0.98);
+            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
         }
 
         button:disabled {
@@ -138,9 +151,25 @@
         }
 
         .info {
-            margin-top: 30px;
+            margin-top: 25px;
             color: #666;
-            font-size: 0.9em;
+            font-size: clamp(0.8em, 3.5vw, 0.9em);
+            line-height: 1.5;
+        }
+
+        .info p {
+            margin: 5px 0;
+        }
+
+        @media (max-width: 400px) {
+            .container {
+                padding: 20px 15px;
+            }
+
+            .dice-container {
+                gap: 15px;
+                margin: 20px 0;
+            }
         }
     </style>
 </head>
@@ -149,8 +178,8 @@
         <h1>🎲 カタン サイコロ 🎲</h1>
 
         <div class="dice-container">
-            <div class="dice red" id="dice1">?</div>
-            <div class="dice yellow" id="dice2">?</div>
+            <div class="dice red" id="dice1" onclick="rollDice()">?</div>
+            <div class="dice yellow" id="dice2" onclick="rollDice()">?</div>
         </div>
 
         <div class="result" id="result">—</div>
