@@ -11,7 +11,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino San
 .header h1 { font-size: 1.6em; margin-bottom: 6px; }
 .header p { opacity: 0.8; font-size: 0.9em; }
 .tabs { display: flex; background: #1a1a2e; overflow-x: auto; }
-.tab-btn { flex: none; padding: 14px 20px; color: rgba(255,255,255,0.7); border: none; background: none; cursor: pointer; font-size: 0.85em; font-weight: 600; white-space: nowrap; border-bottom: 3px solid transparent; transition: all 0.2s; }
+.tab-btn { flex: none; padding: 14px 16px; color: rgba(255,255,255,0.7); border: none; background: none; cursor: pointer; font-size: 0.82em; font-weight: 600; white-space: nowrap; border-bottom: 3px solid transparent; transition: all 0.2s; }
 .tab-btn:hover { color: white; background: rgba(255,255,255,0.1); }
 .tab-btn.active { color: #64b5f6; border-bottom-color: #64b5f6; background: rgba(100,181,246,0.1); }
 .tab-content { display: none; }
@@ -36,7 +36,7 @@ blockquote { border-left: 4px solid #7986cb; padding: 10px 20px; background: #f3
 hr { border: none; border-top: 2px solid #e0e0e0; margin: 30px 0; }
 strong { color: #1a237e; }
 a { color: #3949ab; }
-.footer { text-align: center; padding: 20px; color: #888; font-size: 0.8em; background: #1a1a2e; color: rgba(255,255,255,0.5); margin-top: 40px; }
+.footer { text-align: center; padding: 20px; color: rgba(255,255,255,0.5); background: #1a1a2e; margin-top: 40px; font-size: 0.8em; }
 </style>
 </head>
 <body>
@@ -49,6 +49,7 @@ a { color: #3949ab; }
   <button class="tab-btn" onclick="showTab(1)">⚠️ 脅威一覧</button>
   <button class="tab-btn" onclick="showTab(2)">✅ リリース前チェック</button>
   <button class="tab-btn" onclick="showTab(3)">📁 CLAUDE.md設定</button>
+  <button class="tab-btn" onclick="showTab(4)">🔐 中級編：誰が何を見るか</button>
 </div>
 
 <div class="tab-content active" id="tab0">
@@ -1868,9 +1869,727 @@ description: デプロイ前のセキュリティ・品質チェック
 <li><a href="https://github.com/RiyaParikh0112/claude-code-playbook/blob/main/docs/fundamentals/security-best-practices.md">Claude Code セキュリティプレイブック</a></li>
 </ul></div>
 </div>
+<div class="tab-content" id="tab4">
+  <div class="content"><h1>AIエージェント セキュリティ 中級編</h1>
+<h2>「誰が何を見られるか」完全ガイド ＋ 実践的な秘密情報管理</h2>
+<p><strong>対象</strong>：AIエージェントを使って開発・業務自動化を行うエンジニア・経営者<br />
+<strong>レベル</strong>：中級（基本的なClaude Code / Cursor の操作に慣れた方）</p>
+<hr />
+<h2>この資料で学ぶこと</h2>
+<table>
+<thead>
+<tr>
+<th>学習項目</th>
+<th>重要度</th>
+<th>概要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>「誰が何を見られるか」の主語を理解する</td>
+<td>★★★ 最重要</td>
+<td>全ての概念の土台。ここがズレると全部矛盾する</td>
+</tr>
+<tr>
+<td>Credential Proxy の仕組み</td>
+<td>★★★ 高</td>
+<td>APIキー安全管理の核心</td>
+</tr>
+<tr>
+<td>マスキングの実装</td>
+<td>★★★ 高</td>
+<td>個人情報を扱う開発で必須</td>
+</tr>
+<tr>
+<td>Docker コンテナ vs. サンドボックス</td>
+<td>★★ 中</td>
+<td>言葉を正しく使うために</td>
+</tr>
+<tr>
+<td>AWS Secrets Manager の使い方</td>
+<td>★★ 中</td>
+<td>本番環境での秘密情報管理</td>
+</tr>
+<tr>
+<td>1Password CLI の使い方</td>
+<td>★ 参考</td>
+<td>チーム開発での秘密情報共有</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>CHAPTER 1：最重要 —「誰が何を見られるか」</h2>
+<h3>3人の登場人物</h3>
+<p>AIエージェントを使う時、実は<strong>3つの異なる存在</strong>が動いています。<br />
+この3つを混同すると、セキュリティの説明が全て矛盾します。</p>
+<table>
+<thead>
+<tr>
+<th>名前</th>
+<th>別名</th>
+<th>役割</th>
+<th>何を見られるか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>頭脳</strong></td>
+<td>Claude Code 本体</td>
+<td>指示を理解・ファイルを読む・コードを書く</td>
+<td>PCの全ファイル（設定で制限可能）</td>
+</tr>
+<tr>
+<td><strong>作業部屋</strong></td>
+<td>サンドボックス</td>
+<td>コードが実際に動く隔離された場所</td>
+<td>作業フォルダ内の操作のみ</td>
+</tr>
+<tr>
+<td><strong>受付係</strong></td>
+<td>Credential Proxy</td>
+<td>外部API（OpenAI等）との橋渡し</td>
+<td>事前に預かったAPIキー</td>
+</tr>
+</tbody>
+</table>
+<h3>視覚図：誰が何を見ているか</h3>
+<pre><code>あなたのPC
+┌──────────────────────────────────────────────────────┐
+│                                                       │
+│  【頭脳】 Claude Code 本体                             │
+│  ─────────────────────────────                        │
+│  ・ファイルを読む（Readツール）                          │
+│  ・コマンドを実行する（Bashツール）                      │
+│  ・プロジェクト外のファイルも届く ⚠️                    │
+│    例：~/secrets/.env も読める                         │
+│    例：~/.ssh/ も読める（設定しないと）                  │
+│                          ↓                            │
+│    ┌──────────────────────────────┐                  │
+│    │ 【作業部屋】サンドボックス       │                  │
+│    │ ──────────────────────────   │                  │
+│    │ ・.py .js などのコードが動く    │                  │
+│    │ ・コードで触れるのは作業フォルダ内│                  │
+│    │ ・外部サービスへの直接接続は制限  │                  │
+│    └──────────────────────────────┘                  │
+│                                                       │
+│  【受付係】 Credential Proxy                           │
+│  ─────────────────────────────                        │
+│  ・起動時にAPIキーを預かっている                         │
+│  ・サンドボックスの代わりに外部APIを呼ぶ                  │
+│  ・サンドボックスにはAPIキーを渡さない                    │
+│                                                       │
+└──────────────────────────────────────────────────────┘
+                   ↕ APIコール（OpenAI / Anthropic等）
+              外部サービス
+</code></pre>
+<h3>よくある誤解と正しい理解</h3>
+<table>
+<thead>
+<tr>
+<th>❌ よくある誤解</th>
+<th>✅ 正しい理解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>「サンドボックスを使えば.envも安全」</td>
+<td>.envは<strong>頭脳</strong>（Claude Code本体）が読める。サンドボックスは別の仕組み</td>
+</tr>
+<tr>
+<td>「プロジェクト外に置けば安全」</td>
+<td><strong>頭脳</strong>は全フォルダを読める（settings.jsonで制限が必要）</td>
+</tr>
+<tr>
+<td>「受付係がAPIキーを探しに行く」</td>
+<td><strong>受付係はあらかじめAPIキーを持っている</strong>。探しには行かない</td>
+</tr>
+<tr>
+<td>「コンテナ＝サンドボックス」</td>
+<td>異なる概念（CHAPTER 2で詳説）</td>
+</tr>
+<tr>
+<td>「外部APIは受付係しか呼べない」</td>
+<td>設定次第。受付係を使うのはあくまで<strong>推奨パターン</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>CHAPTER 2：Docker コンテナ vs. サンドボックス</h2>
+<h3>2つの「隔離」はどう違うか</h3>
+<pre><code>通常の Docker コンテナ（開発用）
+┌─────────────────────────┐
+│     あなたのPC（建物）    │
+│  ┌──────────────────┐  │
+│  │  コンテナ（部屋）   │  │
+│  │  ・鍵はかかってる   │  │
+│  │  ・でも廊下（共有部） ─┼──→ 他の部屋に影響する可能性あり
+│  │    は共有          │  │
+│  └──────────────────┘  │
+└─────────────────────────┘
+
+Docker Sandbox（AI専用・より強い隔離）
+┌─────────────────────────┐    ┌──────────────┐
+│     あなたのPC（建物）    │    │ 別の小さな建物 │
+│                         │    │ （Micro VM）  │
+│                         │───→│  AIがここで   │
+│                         │    │  動く         │
+│                         │    │  何か壊れても  │
+│                         │    │  元の建物に無関係│
+└─────────────────────────┘    └──────────────┘
+</code></pre>
+<h3>何を守って、何を守らないか</h3>
+<table>
+<thead>
+<tr>
+<th>比較項目</th>
+<th>Docker コンテナ</th>
+<th>Docker Sandbox（Micro VM）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>使い道</td>
+<td>アプリ開発・実行環境の統一</td>
+<td>AIエージェントに作業させる</td>
+</tr>
+<tr>
+<td>PCへの影響</td>
+<td>共有部分あり（注意が必要）</td>
+<td>Micro VMで完全隔離（影響小）</td>
+</tr>
+<tr>
+<td>壊れた時</td>
+<td>コンテナ再起動</td>
+<td>Sandbox削除して作り直すだけ</td>
+</tr>
+<tr>
+<td>守るもの</td>
+<td>他のアプリへの干渉</td>
+<td>PC全体への誤操作・影響</td>
+</tr>
+<tr>
+<td>守らないもの ⚠️</td>
+<td>共有フォルダ内のファイル変更</td>
+<td>作業フォルダ内のファイル</td>
+</tr>
+<tr>
+<td>AIの読み取り制限</td>
+<td>コード実行の範囲</td>
+<td>頭脳は引き続き外部ファイルを読める</td>
+</tr>
+</tbody>
+</table>
+<h3>重要：サンドボックスでも守れないこと</h3>
+<pre><code>✅ サンドボックスが守ること
+  └─ コードが誤って他のプロジェクトのファイルを書き換えること
+  └─ AIが暴走してPC全体を壊すこと
+  └─ 複数プロジェクト間の干渉
+
+❌ サンドボックスでは守れないこと
+  └─ 作業フォルダ内に置いたAPIキー（コードで読める）
+  └─ 作業フォルダ内の個人情報（コードで読める）
+  └─ Claude Code本体が全フォルダを読むこと（頭脳は別）
+  └─ プロンプトに直接貼り付けた個人情報
+</code></pre>
+<hr />
+<h2>CHAPTER 3：Credential Proxy の仕組み</h2>
+<h3>「受付係」の正体</h3>
+<p>Credential Proxy は「APIキーを事前に預かった受付係」です。</p>
+<p><strong>重要なポイント：受付係はAPIキーを探しに行きません。</strong><br />
+起動時にすでに手元に持っています。</p>
+<h3>ホテルのたとえ</h3>
+<pre><code>【通常のやり方（危険）】
+  ゲスト（サンドボックス）
+    → 「マスターキーを使ってこの部屋を開けて」
+    → マスターキーをゲストに直接渡す  ← ❌ 危険
+    → ゲストがマスターキーを知ってしまう
+
+【Credential Proxyを使った安全なやり方】
+  ゲスト（サンドボックス）
+    → 「この部屋に入りたい」
+    → フロント係（Credential Proxy）に伝える
+    → フロント係が自分のマスターキーで開ける  ← ✅ 安全
+    → ゲストはマスターキーを見ない・知らない
+</code></pre>
+<h3>誰がAPIキーを「持つ」のか</h3>
+<pre><code>起動前：
+  管理者 → Credential Proxy に APIキーを設定（一度だけ）
+
+動作中：
+  サンドボックス →「OpenAIで画像を生成して」
+                ↓
+  Credential Proxy（受付係） → 手元のAPIキーでOpenAIに接続
+                             ↓
+  OpenAI → 画像を生成
+                             ↓
+  Credential Proxy → サンドボックスに結果を返す
+
+  ※ この全過程でサンドボックスはAPIキーを見ない
+</code></pre>
+<h3>Credential Proxy の設定例（Node.js）</h3>
+<pre><code class="language-javascript">// credential-proxy/server.js
+const express = require('express');
+const { OpenAI } = require('openai');
+
+// APIキーはここで一度だけ設定（環境変数から）
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const app = express();
+app.use(express.json());
+
+// サンドボックスからのリクエストを受け付ける
+app.post('/generate-image', async (req, res) =&gt; {
+  const { prompt } = req.body;
+
+  // APIキーを使うのはプロキシだけ
+  const image = await openai.images.generate({ prompt, n: 1, size: '512x512' });
+
+  res.json({ url: image.data[0].url });
+});
+
+app.listen(3001, () =&gt; console.log('Credential Proxy 起動'));
+</code></pre>
+<pre><code class="language-javascript">// sandbox/app.js（サンドボックス内のコード）
+// ← APIキーはどこにも書いていない！
+
+async function generateImage(prompt) {
+  // プロキシに頼むだけ（APIキーを知る必要がない）
+  const response = await fetch('http://localhost:3001/generate-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
+  });
+  return await response.json();
+}
+</code></pre>
+<hr />
+<h2>CHAPTER 4：データの置き場所ガイド</h2>
+<h3>動物病院の例で考える</h3>
+<p>動物病院が扱うデータを「置いていいもの」「置いてはいけないもの」に分けます。</p>
+<h4>❌ 作業フォルダに絶対置いてはいけないもの</h4>
+<table>
+<thead>
+<tr>
+<th>データ種別</th>
+<th>具体例</th>
+<th>置く場所</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>カルテ原本</strong></td>
+<td>診断記録・処方履歴・ペット情報</td>
+<td>病院の電子カルテシステム（EMR）</td>
+</tr>
+<tr>
+<td><strong>医療記録</strong></td>
+<td>手術記録・検査結果</td>
+<td>EMR / 院内サーバー（外部接続なし）</td>
+</tr>
+<tr>
+<td><strong>フル個人情報</strong></td>
+<td>飼い主の氏名＋住所＋電話のセット</td>
+<td>顧客管理DB（CRM）</td>
+</tr>
+<tr>
+<td><strong>パスワード</strong></td>
+<td>DBパスワード・管理画面パスワード</td>
+<td>AWS Secrets Manager / 1Password</td>
+</tr>
+<tr>
+<td><strong>APIキー</strong></td>
+<td>OpenAI API Key / Stripe API Key</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><strong>保険証・支払い情報</strong></td>
+<td>クレジットカード情報</td>
+<td>決済事業者（Stripe等）に委託</td>
+</tr>
+</tbody>
+</table>
+<h4>✅ 作業フォルダに置いてよいもの（AIに渡せるデータ）</h4>
+<table>
+<thead>
+<tr>
+<th>データ種別</th>
+<th>具体例</th>
+<th>条件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>匿名化データ</strong></td>
+<td>ペットID・年齢カテゴリ・症状カテゴリ</td>
+<td>個人を特定できない形に加工済み</td>
+</tr>
+<tr>
+<td><strong>統計・集計データ</strong></td>
+<td>月別受診数・疾患ランキング</td>
+<td>個人情報を含まない</td>
+</tr>
+<tr>
+<td><strong>マスキング済みデータ</strong></td>
+<td>住所の都道府県まで / 電話番号は非表示</td>
+<td>必要最小限の情報のみ</td>
+</tr>
+<tr>
+<td><strong>サンプル・テストデータ</strong></td>
+<td>架空の情報で作ったテスト用データ</td>
+<td>実際の個人情報を含まない</td>
+</tr>
+</tbody>
+</table>
+<h3>データを渡す前の「マスキングフロー」</h3>
+<pre><code>カルテDB（EMR）
+    ↓
+  必要な属性だけ取り出す
+  （氏名・電話は除外、ペットID・年齢・症状だけ）
+    ↓
+  マスキング処理（次章で実装）
+    ↓
+  AIエージェント（作業フォルダ内）
+    ↓
+  分析・自動化
+    ↓
+  結果を人間がレビュー
+    ↓
+  EMRに書き戻す（人間の手で）
+</code></pre>
+<hr />
+<h2>CHAPTER 5：マスキングの実装</h2>
+<h3>基本原則：AIに渡す前に「必要最小限に絞る」</h3>
+<pre><code class="language-javascript">// ❌ やってはいけない：個人情報を丸ごとAIに渡す
+const patient = await db.query('SELECT * FROM patients WHERE id = ?', [id]);
+const prompt = `この患者の対応方法を教えて: ${JSON.stringify(patient)}`;
+// ↑ 氏名・住所・電話・生年月日が全部プロンプトに入る
+
+// ✅ 正しい方法：必要な情報だけに絞ってAIに渡す
+function maskPatient(patient) {
+  return {
+    petId: patient.pet_id,           // ペットID（匿名）
+    species: patient.species,         // 犬・猫など
+    ageGroup: patient.age_group,      // 子犬・成犬・老犬
+    symptoms: patient.symptoms,       // 症状カテゴリ
+    visitCount: patient.visit_count,  // 来院回数
+    // ↓ 以下は渡さない
+    // owner_name, phone, address, birthday は除外
+  };
+}
+
+const safeData = maskPatient(patient);
+const prompt = `この症例への対応を提案して: ${JSON.stringify(safeData)}`;
+</code></pre>
+<h3>画面表示のマスキング（フロントエンド）</h3>
+<pre><code class="language-javascript">// 管理画面での個人情報マスキング表示
+
+function maskPhone(phone) {
+  // 090-1234-5678 → 090-****-5678
+  return phone.replace(/(\d{3})-(\d{4})-(\d{4})/, '$1-****-$3');
+}
+
+function maskAddress(address) {
+  // 東京都新宿区西新宿1-2-3 → 東京都新宿区 ****
+  return address.replace(/(.{5,})区(.*)/, '$1区 ****');
+}
+
+function maskName(name) {
+  // 田中 花子 → 田中 ＊＊
+  const parts = name.split(' ');
+  return parts[0] + ' ' + '＊'.repeat(parts[1]?.length || 2);
+}
+</code></pre>
+<h3>ログ出力のマスキング</h3>
+<pre><code class="language-javascript">// ❌ 個人情報をログに出力してしまう例
+console.log('処理完了:', { name: '田中花子', phone: '090-1234-5678', result: 'OK' });
+
+// ✅ 個人情報をログから除外する
+const { name, phone, ...safeLog } = userData;
+console.log('処理完了:', { userId: userData.id, result: 'OK' });
+// ↑ ログには ID と結果だけ残る
+</code></pre>
+<h3>AIへのプロンプトに個人情報を含めない仕組み（集中管理）</h3>
+<pre><code class="language-javascript">// src/ai/prompt-builder.js
+// ← ここだけでプロンプトを作る（他の場所でAIに渡さない）
+
+function buildPetAnalysisPrompt(rawPatientData) {
+  // このファイルでのみマスキング処理を行う
+  const safe = {
+    petId: rawPatientData.pet_id,
+    species: rawPatientData.species,
+    symptoms: rawPatientData.symptoms,
+    visitCount: rawPatientData.visit_count,
+  };
+
+  return `
+以下のペット情報に基づいて、次回の診察で確認すべき項目を3つ提案してください。
+
+ペットID: ${safe.petId}
+種類: ${safe.species}
+主な症状: ${safe.symptoms.join(', ')}
+来院回数: ${safe.visitCount}回
+
+※ 個人を特定する情報は含まれていません。
+  `.trim();
+}
+
+module.exports = { buildPetAnalysisPrompt };
+</code></pre>
+<hr />
+<h2>CHAPTER 6：APIキー管理の進化</h2>
+<h3>安全性レベルの比較</h3>
+<pre><code>レベル1（最低限）：.env ファイル
+  ├─ ファイルとして存在する → AI に読まれる可能性あり
+  ├─ .gitignore 設定で Git には入らない
+  ├─ 設定しないと GitHub に漏れる ⚠️
+  └─ ローカル開発の出発点として許容
+
+レベル2（推奨）：OS の環境変数
+  ├─ ファイルとして存在しない → ディレクトリスキャンに出ない
+  ├─ メモリ上のみに存在
+  ├─ ただし AI がコードを実行すれば process.env で読める
+  └─ .env より攻撃表面が小さい（完全安全ではない）
+
+レベル3（本番向け）：AWS Secrets Manager / HashiCorp Vault
+  ├─ コードにキーを書かない
+  ├─ IAM ロール（身分証明）で認証 → キーを知らなくても使える
+  ├─ アクセスログが残る（誰がいつ取得したか）
+  └─ キーのローテーション（定期更新）が容易
+
+レベル4（チーム向け）：1Password CLI
+  ├─ チームで秘密情報を安全に共有できる
+  ├─ .env ファイルに実際の値を書かない
+  └─ `op run` でプロセス起動時に環境変数として注入
+</code></pre>
+<hr />
+<h2>CHAPTER 7：AWS Secrets Manager 詳解</h2>
+<h3>認証の仕組み —「毎回ログインが必要？」</h3>
+<p><strong>必要ありません。</strong> AWS は「セッション認証」を使います。</p>
+<pre><code>開発環境（ローカルPC）:
+  $ aws configure  ← 一度だけ実行
+  Access Key ID: AKIA...
+  Secret Access Key: ****
+         ↓
+  ~/.aws/credentials に保存される（一時トークンを自動更新）
+  以降は自動で認証される
+
+本番環境（EC2 / Lambda / ECS）:
+  IAMロールをサービスに付与  ← インフラ設定で一度だけ
+         ↓
+  コードから認証コード不要で自動認証
+  AWS SDK が自動的に IAM ロールを使う
+</code></pre>
+<h3>シークレット取得のコード例（キャッシュあり）</h3>
+<pre><code class="language-javascript">// src/config/secrets.js
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
+
+const client = new SecretsManagerClient({ region: 'ap-northeast-1' });
+
+// キャッシュ（アプリ起動時に一度だけ取得）
+let cachedSecrets = null;
+
+async function getSecrets() {
+  if (cachedSecrets) return cachedSecrets;  // キャッシュがあれば再取得しない
+
+  const response = await client.send(
+    new GetSecretValueCommand({ SecretId: 'myapp/production' })
+  );
+
+  cachedSecrets = JSON.parse(response.SecretString);
+  return cachedSecrets;
+}
+
+// 使い方
+async function main() {
+  const secrets = await getSecrets();  // 1回だけ Secrets Manager に問い合わせる
+
+  const openai = new OpenAI({ apiKey: secrets.OPENAI_API_KEY });
+  const db = new Database({ password: secrets.DB_PASSWORD });
+  // 以降は cachedSecrets を使うため Secrets Manager への問い合わせ不要
+}
+</code></pre>
+<pre><code class="language-python"># Python 版
+import boto3, json
+
+client = boto3.client('secretsmanager', region_name='ap-northeast-1')
+_cached_secrets = None  # キャッシュ
+
+def get_secrets():
+    global _cached_secrets
+    if _cached_secrets:
+        return _cached_secrets
+
+    response = client.get_secret_value(SecretId='myapp/production')
+    _cached_secrets = json.loads(response['SecretString'])
+    return _cached_secrets
+</code></pre>
+<h3>AWS コンソールでの設定手順</h3>
+<pre><code>1. AWS コンソール → Secrets Manager → 「シークレットを保存」
+2. シークレットの種類: 「その他のシークレット」
+3. キーと値を入力:
+   OPENAI_API_KEY  : sk-proj-xxxxxxxx
+   DB_PASSWORD     : supersecretpass
+   STRIPE_API_KEY  : sk_live_xxxxxxxx
+4. シークレット名: myapp/production
+5. 保存
+</code></pre>
+<h3>コスト感</h3>
+<ul>
+<li>1シークレット = <strong>月額 $0.40</strong>（約60円）</li>
+<li>10,000回の取得 = <strong>月額 $0.05</strong>（約7円）</li>
+<li>月5シークレット、100回取得 = <strong>約300円</strong></li>
+</ul>
+<hr />
+<h2>CHAPTER 8：1Password CLI</h2>
+<h3>1Password とは</h3>
+<p>個人・チーム向けの<strong>パスワードマネージャー</strong>です。<br />
+CLIを使うと、ターミナルからVault（金庫）にアクセスできます。</p>
+<h3>通常の .env との違い</h3>
+<pre><code>通常の .env:
+  OPENAI_API_KEY=sk-proj-xxxxxxxx  ← 実際の値がファイルに書かれている
+  DB_PASSWORD=supersecretpass       ← .gitignore していても AI に読まれる可能性
+
+1Password CLI を使った .env.template:
+  OPENAI_API_KEY=op://MyVault/OpenAI/api-key    ← 1Password の参照パス
+  DB_PASSWORD=op://MyVault/Database/password      ← 実際の値はここにない
+         ↓ op run コマンドで起動
+  op run --env-file=.env.template -- node server.js
+         ↓ 起動時に自動で値が注入される
+  process.env.OPENAI_API_KEY  = 'sk-proj-xxxxxxxx'  （メモリ内のみ）
+</code></pre>
+<h3>インストールと基本操作</h3>
+<pre><code class="language-bash"># macOS
+brew install 1password-cli
+
+# ログイン（一度だけ）
+op signin
+
+# シークレットを読む
+op read &quot;op://MyVault/OpenAI/api-key&quot;
+
+# .env.template を使ってアプリを起動
+op run --env-file=.env.template -- node server.js
+op run --env-file=.env.template -- python app.py
+</code></pre>
+<h3>.env.template（git にコミットしてよい）</h3>
+<pre><code class="language-bash"># .env.template
+# このファイルは git にコミットしてチームで共有できる
+# 実際の値は 1Password に保存されている
+
+OPENAI_API_KEY=op://MyVault/OpenAI/api-key
+ANTHROPIC_API_KEY=op://MyVault/Anthropic/api-key
+DB_PASSWORD=op://MyVault/Database/production-password
+STRIPE_API_KEY=op://MyVault/Stripe/secret-key
+</code></pre>
+<h3>チームでの使い方</h3>
+<pre><code>1. 1Password でチーム用 Vault（金庫）を作成
+2. チームメンバーを Vault に招待
+3. .env.template を git にコミット
+4. 各自が自分のアカウントで op signin してから op run で起動
+5. 実際のキーはVaultで一元管理
+   → 誰かが退職したら Vault のアクセスを削除するだけ
+</code></pre>
+<hr />
+<h2>CHAPTER 9：次回ミーティング準備チェックリスト</h2>
+<h3>必ず説明すること（優先度：高）</h3>
+<ul>
+<li>[ ] <strong>3人の登場人物の図を見せる</strong>：頭脳・作業部屋・受付係の違いを最初に確認する</li>
+<li>[ ] <strong>「頭脳はプロジェクト外も読める」を実演</strong>：settings.json の deny ルールを設定して見せる</li>
+<li>[ ] <strong>Credential Proxy の正しいたとえ</strong>：「探しに行く」ではなく「最初から持っている」</li>
+</ul>
+<h3>動物病院向けに用意すること（優先度：高）</h3>
+<ul>
+<li>[ ] <strong>データ仕分け表を1枚作る</strong>：カルテのどの項目をAIに渡せて、どれは渡せないか</li>
+<li>[ ] <strong>マスキングのデモ</strong>：架空のカルテデータでマスキング処理を実演する</li>
+<li>[ ] <strong>「AIに渡せる最小限データ」の定義</strong>：ペットID・症状カテゴリ・年齢区分など</li>
+</ul>
+<h3>環境設定として実演すること（優先度：中）</h3>
+<pre><code class="language-json">// .claude/settings.json（実際に設定して見せる）
+{
+  &quot;permissions&quot;: {
+    &quot;deny&quot;: [
+      &quot;Read(./.env*)&quot;,
+      &quot;Read(./secrets/*)&quot;,
+      &quot;Read(~/.ssh/*)&quot;,
+      &quot;Read(~/.aws/credentials)&quot;,
+      &quot;Bash(curl * | bash)&quot;,
+      &quot;Bash(wget * -O- | sh)&quot;
+    ]
+  }
+}
+</code></pre>
+<h3>将来的に導入を提案すること（優先度：低〜中）</h3>
+<ul>
+<li>[ ] AWS Secrets Manager または 1Password CLI への移行計画</li>
+<li>[ ] 本番環境でのアクセスログ取得設定</li>
+<li>[ ] APIキーのローテーション（定期更新）スケジュール</li>
+</ul>
+<h3>一言で伝えるメッセージ</h3>
+<blockquote>
+<p><strong>「AIエージェントを使う時は、AIに渡すデータを絞ること。AIは賢いが、渡したものは見る。渡さなければ見えない。」</strong></p>
+</blockquote>
+<hr />
+<h2>まとめ：今すぐできる対策</h2>
+<table>
+<thead>
+<tr>
+<th>対策</th>
+<th>難易度</th>
+<th>効果</th>
+<th>いつやるか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>settings.json に deny ルール追加</td>
+<td>★ 簡単</td>
+<td>.env 読み取り防止</td>
+<td><strong>今すぐ</strong></td>
+</tr>
+<tr>
+<td>.claudeignore 設定</td>
+<td>★ 簡単</td>
+<td>AI の参照範囲制限</td>
+<td><strong>今すぐ</strong></td>
+</tr>
+<tr>
+<td>APIキーを作業フォルダ外の .env に移動</td>
+<td>★★ 普通</td>
+<td>誤読リスク低減</td>
+<td><strong>今週中</strong></td>
+</tr>
+<tr>
+<td>OS 環境変数への移行</td>
+<td>★★ 普通</td>
+<td>ファイルレス化</td>
+<td><strong>今月中</strong></td>
+</tr>
+<tr>
+<td>マスキング関数の実装</td>
+<td>★★ 普通</td>
+<td>個人情報漏洩防止</td>
+<td><strong>開発前に</strong></td>
+</tr>
+<tr>
+<td>Credential Proxy の導入</td>
+<td>★★★ 難しい</td>
+<td>APIキー完全隔離</td>
+<td><strong>本番前に</strong></td>
+</tr>
+<tr>
+<td>AWS Secrets Manager 導入</td>
+<td>★★★ 難しい</td>
+<td>エンタープライズ級管理</td>
+<td><strong>本番前に</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>参考：OWASP LLM Top 10 / Anthropic Security Best Practices / AWS Secrets Manager Documentation</em></p></div>
+</div>
 
 <div class="footer">
-  <p>AIエージェント セキュリティドキュメント v2.0 | 2026年版</p>
+  <p>AIエージェント セキュリティドキュメント v3.0 | 2026年版</p>
 </div>
 
 <script>
