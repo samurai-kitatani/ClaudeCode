@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIエージェント開発 セキュリティガイド</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f7fa;
+      color: #333;
+    }
+
+    /* ヘッダー */
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      padding: 20px 40px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    header h1 { font-size: 1.3em; font-weight: 600; }
+    header p { font-size: 0.85em; opacity: 0.7; margin-top: 4px; }
+
+    /* タブナビゲーション */
+    .tabs {
+      display: flex;
+      background: #1e2a3a;
+      padding: 0 40px;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .tab {
+      padding: 12px 20px;
+      cursor: pointer;
+      color: rgba(255,255,255,0.6);
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      font-size: 0.9em;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .tab:hover { color: rgba(255,255,255,0.9); }
+    .tab.active {
+      color: #4fc3f7;
+      border-bottom-color: #4fc3f7;
+    }
+
+    /* コンテンツエリア */
+    .content-area {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .doc-panel { display: none; }
+    .doc-panel.active { display: block; }
+
+    /* Markdownスタイル */
+    .markdown-body h1 {
+      font-size: 1.8em;
+      border-bottom: 3px solid #4fc3f7;
+      padding-bottom: 10px;
+      margin: 0 0 24px;
+      color: #1a1a2e;
+    }
+    .markdown-body h2 {
+      font-size: 1.4em;
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      color: white;
+      padding: 10px 16px;
+      border-radius: 8px;
+      margin: 36px 0 16px;
+    }
+    .markdown-body h3 {
+      font-size: 1.1em;
+      color: #1a1a2e;
+      border-left: 4px solid #4fc3f7;
+      padding-left: 12px;
+      margin: 24px 0 12px;
+    }
+    .markdown-body h4 {
+      font-size: 1em;
+      color: #555;
+      margin: 16px 0 8px;
+    }
+    .markdown-body p {
+      line-height: 1.8;
+      margin-bottom: 12px;
+      color: #444;
+    }
+    .markdown-body ul, .markdown-body ol {
+      margin: 8px 0 16px 24px;
+      line-height: 1.8;
+    }
+    .markdown-body li { margin-bottom: 4px; }
+    .markdown-body code {
+      background: #f0f4f8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.88em;
+      color: #c7254e;
+    }
+    .markdown-body pre {
+      background: #1e2a3a;
+      color: #e8f4f8;
+      padding: 20px;
+      border-radius: 10px;
+      overflow-x: auto;
+      margin: 12px 0 20px;
+      line-height: 1.6;
+    }
+    .markdown-body pre code {
+      background: none;
+      color: inherit;
+      font-size: 0.9em;
+      padding: 0;
+    }
+    .markdown-body blockquote {
+      background: #e8f4ff;
+      border-left: 4px solid #4fc3f7;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 12px 0;
+      color: #333;
+      font-style: italic;
+    }
+    .markdown-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.9em;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .markdown-body th {
+      background: #1a1a2e;
+      color: white;
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .markdown-body td {
+      padding: 9px 14px;
+      border-bottom: 1px solid #e8edf2;
+    }
+    .markdown-body tr:nth-child(even) td { background: #f8fafc; }
+    .markdown-body tr:hover td { background: #eef5ff; }
+    .markdown-body hr {
+      border: none;
+      border-top: 2px solid #e8edf2;
+      margin: 32px 0;
+    }
+
+    /* チェックボックス */
+    .markdown-body input[type="checkbox"] {
+      margin-right: 8px;
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+      accent-color: #4fc3f7;
+    }
+    .markdown-body li:has(input[type="checkbox"]) {
+      list-style: none;
+      margin-left: -20px;
+    }
+
+    /* ローディング */
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: #999;
+      font-size: 1.1em;
+    }
+
+    /* スクロールトップボタン */
+    #scrollTop {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #1a1a2e;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      display: none;
+      transition: opacity 0.2s;
+    }
+    #scrollTop:hover { background: #4fc3f7; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>AIエージェント開発 セキュリティガイド</h1>
+  <p>ミーティング進行資料 ／ 脅威概要 ／ リリース前チェックリスト</p>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('meeting')">📋 開発フェーズ ミーティングガイド</div>
+  <div class="tab" onclick="showTab('threats')">⚠️ 脅威・攻撃手法 概要シート</div>
+  <div class="tab" onclick="showTab('checklist')">✅ リリース前チェックリスト</div>
+</div>
+
+<div class="content-area">
+  <div id="meeting" class="doc-panel active">
+    <div class="loading">読み込み中...</div>
+  </div>
+  <div id="threats" class="doc-panel">
+    <div class="loading">読み込み中...</div>
+  </div>
+  <div id="checklist" class="doc-panel">
+    <div class="loading">読み込み中...</div>
+  </div>
+</div>
+
+<button id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+  // タブ切り替え
+  function showTab(id) {
+    document.querySelectorAll('.doc-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.target.classList.add('active');
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  // Markdownファイルを読み込んでレンダリング
+  async function loadDoc(panelId, filename) {
+    try {
+      const res = await fetch(filename);
+      const text = await res.text();
+      const html = marked.parse(text);
+      const panel = document.getElementById(panelId);
+      panel.innerHTML = `<div class="markdown-body">${html}</div>`;
+
+      // チェックボックスを有効化
+      panel.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.removeAttribute('disabled');
+      });
+    } catch(e) {
+      document.getElementById(panelId).innerHTML = `<p style="color:red">読み込みエラー: ${e.message}</p>`;
+    }
+  }
+
+  // 3つのドキュメントを読み込む
+  loadDoc('meeting',   'ai-agent-dev-security-meeting-guide.md');
+  loadDoc('threats',   'ai-agent-threats-overview.md');
+  loadDoc('checklist', 'ai-agent-security-guide.md');
+
+  // スクロールトップボタン
+  window.addEventListener('scroll', () => {
+    document.getElementById('scrollTop').style.display = window.scrollY > 300 ? 'block' : 'none';
+  });
+</script>
+</body>
+</html>
