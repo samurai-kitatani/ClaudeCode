@@ -220,123 +220,227 @@ docs/internal-only/
 「過去に <code>.env</code> をコミットしてしまったことはありますか？」</p>
 </blockquote>
 <hr />
-<h2>⚠️ よくある問題パターン</h2>
-<pre><code class="language-javascript">// ❌ ダメな例：コードに直書き
-const client = new OpenAI({ apiKey: &quot;sk-xxxxxxxxxxxxxxxxxxxx&quot; });
-const db = mysql.connect({ password: &quot;mypassword&quot; });
+<h2>🎯 管理方法の全体像（安全レベル別）</h2>
+<blockquote>
+<p><strong>重要：<code>.env</code> ファイルや環境設定ファイルは「NG寄り」です。</strong><br />
+ローカル開発の最低ラインとして許容されるだけで、本番・チーム開発では推奨しません。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>レベル</th>
+<th>方法</th>
+<th>安全性</th>
+<th>使う場面</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>❌ 絶対NG</td>
+<td>コードに直書き</td>
+<td>論外</td>
+<td>絶対にやらない</td>
+</tr>
+<tr>
+<td>❌ 絶対NG</td>
+<td>CLAUDE.md / README に書く</td>
+<td>論外</td>
+<td>絶対にやらない</td>
+</tr>
+<tr>
+<td>⚠️ NG寄り</td>
+<td><code>.env</code> ファイル</td>
+<td>低〜中</td>
+<td>ローカル開発の最低ライン</td>
+</tr>
+<tr>
+<td>⚠️ NG寄り</td>
+<td>環境設定ファイル（config.yaml等）</td>
+<td>低</td>
+<td>Gitに入ると即アウト</td>
+</tr>
+<tr>
+<td>△ 許容</td>
+<td>OS の環境変数（ファイルなし）</td>
+<td>中</td>
+<td>ローカル開発の改善版</td>
+</tr>
+<tr>
+<td>✅ 推奨</td>
+<td><strong>1Password CLI</strong></td>
+<td>高</td>
+<td>個人・小チーム開発</td>
+</tr>
+<tr>
+<td>✅ 推奨</td>
+<td><strong>AWS Secrets Manager</strong></td>
+<td>高</td>
+<td>本番環境・クラウド運用</td>
+</tr>
+<tr>
+<td>✅ 推奨</td>
+<td><strong>HashiCorp Vault</strong></td>
+<td>高</td>
+<td>エンタープライズ・大規模</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>❌ なぜ <code>.env</code> は「NG寄り」なのか</h2>
+<p><code>.env</code> はファイルとしてディスクに存在します。そのためリスクがあります。</p>
+<pre><code>.env ファイルが存在することで起きるリスク：
 
-// ❌ ダメな例：CLAUDE.md や README に書いてしまう
-</code></pre>
-<pre><code class="language-javascript">// ✅ 正しい例：環境変数から読み込む
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const db = mysql.connect({ password: process.env.DB_PASSWORD });
+① AIエージェントに読まれる
+   → Claude Code / Cursor は .env をプロジェクトフォルダ内で読める
+   → .claudeignore の設定を無視するケースがある（2026年1月 The Register 報告）
+
+② git に誤コミットする
+   → .gitignore の設定ミスで GitHub に公開されてしまう
+   → 過去のコミット履歴から掘り起こせる
+
+③ ファイルごと盗まれる
+   → PC 紛失・マルウェア感染でファイルが流出
 </code></pre>
 <hr />
-<h2>🔍「環境変数から読み込む」とはどういう意味か</h2>
-<p><strong>「環境変数」とは、OS（コンピューター本体）のメモリ上に保存された変数のことです。</strong></p>
-<pre><code>【情報の流れ】
-
-① .env ファイル（テキストファイル）
-        ↓  dotenv ライブラリが読み込む（アプリ起動時のみ）
-② OS のメモリ上の「環境変数」にセット
-        ↓  コードが取り出す
-③ process.env.API_KEY（Node.js）/ os.environ.get('API_KEY')（Python）
+<h2>✅ 推奨：AWS Secrets Manager を使う</h2>
+<p>コードにキーを書かず、<strong>AWSのサービスから実行時に取得する</strong>方法です。</p>
+<pre><code>仕組み：
+  AWS に「このサーバー（IAMロール）からのアクセスを許可する」と設定
+      ↓
+  コードが起動時に Secrets Manager からキーを取得
+      ↓
+  キーはメモリ上にのみ存在（ファイルなし・コードなし）
 </code></pre>
-<p><strong>コードが読んでいるのは「ファイル」ではなく「OSのメモリ」です。</strong><br />
-だから <code>.env</code> ファイルを削除しても、一度 OS にセットされた変数は使えます。</p>
-<h3>実装例</h3>
-<pre><code class="language-javascript">// Node.js の場合
-// アプリの一番最初（エントリーポイント）に1行だけ書く
-require('dotenv').config();   // .env → OS環境変数 に読み込む
+<pre><code class="language-javascript">// Node.js：起動時に一度だけ取得してキャッシュする
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 
-// あとはどこからでも取り出せる
-const apiKey = process.env.OPENAI_API_KEY;
-const dbPass = process.env.DB_PASSWORD;
+const client = new SecretsManagerClient({ region: 'ap-northeast-1' });
+let _secrets = null;
+
+async function getSecrets() {
+  if (_secrets) return _secrets;  // キャッシュ済みなら再取得しない
+  const res = await client.send(new GetSecretValueCommand({ SecretId: 'myapp/production' }));
+  _secrets = JSON.parse(res.SecretString);
+  return _secrets;
+}
+
+// 使い方（コードのどこにもキーを書かない）
+const { OPENAI_API_KEY, DB_PASSWORD } = await getSecrets();
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 </code></pre>
-<pre><code class="language-python"># Python の場合
-from dotenv import load_dotenv
-import os
-
-load_dotenv()  # .env → OS環境変数 に読み込む
-
-api_key = os.environ.get('OPENAI_API_KEY')
-db_pass = os.environ.get('DB_PASSWORD')
+<p><strong>メリット：</strong><br />
+- <code>.env</code> ファイルが不要（ファイルが存在しない）<br />
+- IAMロールで「誰がアクセスできるか」を管理できる<br />
+- アクセスログが残る（誰がいつ取得したか記録される）<br />
+- キーのローテーション（定期更新）が簡単</p>
+<hr />
+<h2>✅ 推奨：1Password CLI を使う（個人・小チーム向け）</h2>
+<p>1Password（パスワードマネージャー）にキーを保管し、<strong>アプリ起動時に自動注入する</strong>方法です。</p>
+<pre><code class="language-bash"># .env.template（実際の値は書かない・git にコミットしてOK）
+OPENAI_API_KEY=op://MyVault/OpenAI/api-key
+DB_PASSWORD=op://MyVault/Database/password
 </code></pre>
-<pre><code class="language-javascript">// src/config/index.js（設定の一元管理）
-// このファイルだけで全環境変数を管理する
-module.exports = {
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY,
-  },
-  db: {
-    host:     process.env.DB_HOST,
-    password: process.env.DB_PASSWORD,
-  },
-  jwt: {
-    secret: process.env.JWT_SECRET,
-  },
-};
+<pre><code class="language-bash"># 1Password CLI でアプリを起動（値がメモリに注入される）
+op run --env-file=.env.template -- node server.js
 
-// 使う側（どこかのファイル）
-const config = require('./config');
-const client = new OpenAI({ apiKey: config.openai.apiKey });
+# コードは普通に process.env で読むだけ（変更不要）
 </code></pre>
-<h3>より安全な方法：<code>.env</code> ファイルなしで OS に直接セット</h3>
-<pre><code class="language-bash"># Mac / Linux の場合（ターミナルで実行）
+<p><strong>メリット：</strong><br />
+- <code>.env</code> に実際の値を書かない<br />
+- チームで <code>.env.template</code> を共有できる（値は各自の1Passwordから取得）<br />
+- 誰かが退職したら1Passwordのアクセスを削除するだけ</p>
+<hr />
+<h2>△ 許容：OS の環境変数（.env ファイルなし）</h2>
+<p><code>.env</code> よりはマシですが、本番には不十分です。ローカル開発の改善版として使います。</p>
+<pre><code class="language-bash"># Mac / Linux：ターミナルで直接セット（ファイルを作らない）
 export OPENAI_API_KEY=&quot;sk-xxxxxxxxxxxx&quot;
 export DB_PASSWORD=&quot;mypassword&quot;
 
-# または ~/.zshrc や ~/.bashrc に書いて永続化
+# 永続化する場合は ~/.zshrc に書く
 echo 'export OPENAI_API_KEY=&quot;sk-xxxxxxxxxxxx&quot;' &gt;&gt; ~/.zshrc
+source ~/.zshrc
 </code></pre>
-<p>この方法なら <code>.env</code> ファイル自体が存在しないので AI に読まれるリスクがゼロです。</p>
+<pre><code>OS環境変数のメリット：
+  ✅ ファイルとして存在しない → AI に読まれるリスクが低い
+  ✅ git に入らない
+
+OS環境変数のデメリット：
+  ⚠️ AIがコードを実行すれば process.env で読める
+  ⚠️ PC ごとに設定が必要（チームで共有できない）
+  ⚠️ 再起動で消えることがある（永続化設定が必要）
+</code></pre>
 <hr />
-<h2>🔍 <code>.env</code> ファイルの書き方</h2>
-<pre><code class="language-bash"># .env（このファイルはGitに含めない・AIに読ませない工夫も必要）
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxx
-DB_HOST=localhost
-DB_PASSWORD=your_password_here
-JWT_SECRET=your_jwt_secret_here
+<h2>⚠️ .env を使う場合の最低限の対策（やむを得ない時のみ）</h2>
+<p>どうしても <code>.env</code> を使う場合は以下を必ずすべて実施します。</p>
+<pre><code class="language-bash"># .gitignore（必須）
+.env
+.env.*
+.env.local
+.env.production
+
+# .claudeignore（AIに読ませない）
+.env
+.env.*
 </code></pre>
-<pre><code class="language-bash"># .env.example（このファイルはGitに含める・値は空）
+<pre><code class="language-json">// .claude/settings.json（AIのファイルアクセスを制限）
+{
+  &quot;permissions&quot;: {
+    &quot;deny&quot;: [
+      &quot;Read(./.env*)&quot;,
+      &quot;Read(./secrets/*)&quot;
+    ]
+  }
+}
+</code></pre>
+<pre><code class="language-bash"># .env.example（値は空にしてgitにコミット）
 OPENAI_API_KEY=
-DB_HOST=
 DB_PASSWORD=
 JWT_SECRET=
 </code></pre>
 <hr />
-<h2>🛠 過去にAPIキーをコミットしていないか確認する方法</h2>
-<pre><code class="language-bash"># ターミナルで実行（&quot;sk-&quot; はOpenAI APIキーの先頭）
+<h2>🔍「環境変数から読み込む」とは何か（コード側の実装）</h2>
+<p>どの方法（1Password / Secrets Manager / OS環境変数）を使っても、<br />
+<strong>コード側の書き方は同じ</strong>です。</p>
+<pre><code class="language-javascript">// src/config/index.js（設定の一元管理ファイル）
+// このファイルだけで全環境変数を管理する
+module.exports = {
+  openai: { apiKey: process.env.OPENAI_API_KEY },
+  db:     { host: process.env.DB_HOST, password: process.env.DB_PASSWORD },
+  jwt:    { secret: process.env.JWT_SECRET },
+};
+</code></pre>
+<pre><code>情報の流れ（どの方法でも同じ）：
+
+AWS Secrets Manager ─→
+1Password CLI      ─→  OS メモリ上の環境変数  →  process.env.VAR  →  コード
+OS export コマンド ─→
+（.env + dotenv）  ─→
+</code></pre>
+<hr />
+<h2>🛠 過去にAPIキーをコミットしていないか確認する</h2>
+<pre><code class="language-bash"># &quot;sk-&quot; は OpenAI APIキーの先頭
 git log --all -S &quot;sk-&quot; --oneline
 
-# 全ファイルを検索
-git grep &quot;sk-&quot; $(git rev-list --all)
-</code></pre>
-<p><strong>もし見つかった場合</strong>：<br />
-1. 即座にそのAPIキーを<strong>無効化</strong>する（各サービスの管理画面から）<br />
-2. 新しいキーを発行する<br />
-3. 過去のコミット履歴からキーを削除する（<code>git-filter-repo</code> を使う）<br />
-4. GitHubにすでにプッシュしている場合は<strong>公開状態を確認</strong>する</p>
-<hr />
-<h2>🔍 GitLeaks で自動チェックする</h2>
-<pre><code class="language-bash"># インストール（Mac）
-brew install gitleaks
-
-# プロジェクト全体をスキャン
-gitleaks detect --source . -v
+# 見つかった場合：即座にキーを無効化してから対処
+# 1. 各サービスの管理画面でキーを失効させる（最優先）
+# 2. 新しいキーを発行する
+# 3. git-filter-repo でコミット履歴からキーを削除する
 </code></pre>
 <hr />
 <h2>🛠 AIエージェントへの指示（CLAUDE.md に追記）</h2>
-<pre><code class="language-markdown"># セキュリティ重要事項
+<pre><code class="language-markdown"># シークレット情報の取り扱い（IMPORTANT）
 - APIキーや秘密情報は絶対にコードに直書きしない
-- 設定値はすべて process.env.VARIABLE_NAME で読み込む
-- 新しい外部サービスを使う場合は .env.example にキー名だけ追加する
+- .env ファイルを読んだり内容をプロンプトに含めない
+- 新しい外部サービスを追加する場合は .env.example にキー名だけ追加する
+- npm install / pip install は確認なしに実行しない
 </code></pre>
 <hr />
 <h2>✅ STEP 2 確認事項チェック</h2>
 <ul>
 <li>[ ] APIキーがコードに直書きされていない</li>
-<li>[ ] <code>.gitignore</code> を確認した</li>
+<li>[ ] 管理方法のレベルを把握した（.env / OS環境変数 / Secrets Manager / 1Password）</li>
+<li>[ ] 本番環境では Secrets Manager または 1Password CLI の導入を計画している</li>
+<li>[ ] <code>.gitignore</code> に <code>.env</code> が記載されている</li>
 <li>[ ] 過去のコミットにキーが含まれていないか確認した</li>
 <li>[ ] 本番用と開発用でAPIキーを使い分けている（または計画がある）</li>
 </ul>
@@ -2716,7 +2820,7 @@ STRIPE_API_KEY=op://MyVault/Stripe/secret-key
 <p><em>参考：OWASP LLM Top 10 / Anthropic Security Best Practices / AWS Secrets Manager Documentation</em></p></div></div>
 
 <div class="footer">
-  <p>AIエージェント セキュリティドキュメント v3.3 | 2026年版</p>
+  <p>AIエージェント セキュリティドキュメント v3.4 | 2026年版</p>
 </div>
 
 <script>
