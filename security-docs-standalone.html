@@ -37,9 +37,6 @@ blockquote p { margin: 6px 0; }
 hr { border: none; border-top: 2px solid #e0e0e0; margin: 30px 0; }
 strong { color: #1a237e; }
 a { color: #3949ab; }
-/* 結論ブロック：📌 を含む h2 を強調 */
-h2:has(+ *) { }
-.content h2 { }
 .footer { text-align: center; padding: 16px; color: rgba(255,255,255,0.5); background: #1a1a2e; margin-top: 40px; font-size: 0.8em; }
 </style>
 </head>
@@ -54,6 +51,7 @@ h2:has(+ *) { }
   <button class="tab-btn" onclick="showTab(2)">✅ リリース前チェック</button>
   <button class="tab-btn" onclick="showTab(3)">📁 CLAUDE.md設定</button>
   <button class="tab-btn" onclick="showTab(4)">🔐 中級編：誰が何を見るか</button>
+  <button class="tab-btn" onclick="showTab(5)">🌐 VPN解説</button>
 </div>
 
 <div class="tab-content active" id="tab0"><div class="content"><h1>AIエージェント開発 セキュリティ実践ガイド</h1>
@@ -2996,9 +2994,489 @@ STRIPE_API_KEY=op://MyVault/Stripe/secret-key
 </table>
 <hr />
 <p><em>参考：OWASP LLM Top 10 / Anthropic Security Best Practices / AWS Secrets Manager Documentation</em></p></div></div>
+<div class="tab-content" id="tab5"><div class="content"><h1>VPN セキュリティガイド</h1>
+<h2>AI開発者・経営者のためのVPN完全解説</h2>
+<p><strong>対象</strong>：テレワーク・AI開発をしているエンジニア・経営者<br />
+<strong>目的</strong>：VPNの基礎から、AI開発への影響・注意点まで理解する</p>
+<hr />
+<h1>PART 1｜VPNとは何か</h1>
+<hr />
+<h2>VPN（仮想プライベートネットワーク）の基本</h2>
+<p><strong>VPN = Virtual Private Network（仮想専用回線）</strong></p>
+<pre><code>普通のインターネット通信（VPNなし）：
+
+あなたのPC ──── 公道（誰でも見られる） ──── Webサーバー
+                    ↑
+                ISP（通信会社）、悪意のある人、
+                Wi-Fiオーナーが通信内容を見られる
+</code></pre>
+<pre><code>VPN使用時：
+
+あなたのPC ══╗                      ╔══ Webサーバー
+             ║  暗号化トンネル（鍵付きの専用通路）  ║
+             ╚══ VPNサーバー ════════╝
+                    ↑
+               外からは「暗号化された塊」にしか見えない
+               どこにアクセスしているかも見えない
+</code></pre>
+<h3>わかりやすいたとえ</h3>
+<blockquote>
+<p><strong>通常の通信</strong> = ハガキで手紙を送る（郵便局員も内容が読める）<br />
+<strong>VPN通信</strong> = 鍵のかかった封筒で送る（中身は受取人だけが読める）</p>
+</blockquote>
+<hr />
+<h2>VPNが守るもの・守らないもの</h2>
+<table>
+<thead>
+<tr>
+<th>守るもの</th>
+<th>守らないもの</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>通信内容の盗聴（カフェのWi-Fi等）</td>
+<td>マルウェア・ウイルス感染</td>
+</tr>
+<tr>
+<td>接続先サイトの隠蔽</td>
+<td>フィッシング詐欺</td>
+</tr>
+<tr>
+<td>IPアドレスの隠蔽（身元）</td>
+<td>VPNサーバー側のログ</td>
+</tr>
+<tr>
+<td>通信の改ざん防止</td>
+<td>デバイス自体への不正アクセス</td>
+</tr>
+<tr>
+<td>海外から国内リソースへのアクセス</td>
+<td>パスワードの使い回しリスク</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>重要：</strong> VPNは「銀の弾丸（万能の解決策）」ではありません。<br />
+<strong>通信経路を守るツール</strong> であり、セキュリティ対策の一部です。</p>
+</blockquote>
+<hr />
+<h2>VPNの種類</h2>
+<h3>① リモートアクセスVPN（個人〜テレワーク向け）</h3>
+<pre><code>自宅・カフェのPC ──── VPN ──── 会社のネットワーク
+                              ↓
+                         社内サーバー・社内システム
+</code></pre>
+<ul>
+<li><strong>使い道</strong>：テレワークで会社のシステムに安全に接続</li>
+<li><strong>製品例</strong>：Cisco AnyConnect、Fortinet SSL-VPN、Pulse Secure</li>
+</ul>
+<h3>② サイト間VPN（拠点間接続）</h3>
+<pre><code>本社ネットワーク ──── VPN ──── 支社ネットワーク
+</code></pre>
+<ul>
+<li><strong>使い道</strong>：本社と支社を専用回線のように接続</li>
+<li><strong>製品例</strong>：AWS Site-to-Site VPN、Cisco ASA</li>
+</ul>
+<h3>③ パーソナルVPN（個人向けサービス）</h3>
+<pre><code>PC・スマホ ──── VPNサービス ──── インターネット
+</code></pre>
+<ul>
+<li><strong>使い道</strong>：フリーWi-Fi対策、プライバシー保護、海外コンテンツ視聴</li>
+<li><strong>製品例</strong>：NordVPN、ExpressVPN、Mullvad VPN</li>
+</ul>
+<hr />
+<h1>PART 2｜暗号化とは何か</h1>
+<hr />
+<h2>暗号化の基本概念</h2>
+<p><strong>暗号化 = 「意味のある情報」を「意味のない記号の羅列」に変換すること</strong></p>
+<pre><code>元のデータ（平文）：  こんにちは、パスワードは abc123 です
+暗号化後（暗号文）：  Xk9$mP2#qL8vR4&amp;nB6wY1!eF7jH3sD5
+                      ↑ 鍵がないと絶対に読めない
+</code></pre>
+<h3>わかりやすいたとえ</h3>
+<blockquote>
+<p><strong>暗号化</strong> = 宝箱に入れて鍵をかける<br />
+<strong>復号（でこう）</strong> = 鍵を使って宝箱を開ける<br />
+<strong>暗号化キー</strong> = その鍵そのもの</p>
+</blockquote>
+<hr />
+<h2>VPNで使われる暗号化方式</h2>
+<h3>AES-256（現在の標準）</h3>
+<pre><code>AES = Advanced Encryption Standard（高度暗号化標準）
+256 = 鍵の長さ（256ビット）
+
+解読にかかる時間（スーパーコンピュータ使用）：
+AES-128 → 1兆年以上
+AES-256 → さらにその2の128乗倍 ≒ 事実上不可能
+</code></pre>
+<blockquote>
+<p><strong>現在のコンピュータでは解読は不可能</strong>とされています。<br />
+銀行・政府・軍も同じAES-256を使用しています。</p>
+</blockquote>
+<h3>TLS/SSL（ウェブの暗号化）</h3>
+<pre><code>https:// で始まるサイトは TLS で暗号化されている
+VPN + TLS = 二重の保護
+
+ブラウザの鍵マーク🔒 = TLS通信中（安全）
+http://（鍵なし）      = 暗号化なし（危険）
+</code></pre>
+<hr />
+<h2>暗号化の流れ（VPN接続時）</h2>
+<pre><code>Step 1: 接続開始
+  あなたのPC ──── 「接続したい」 ──── VPNサーバー
+
+Step 2: 鍵の交換（ハンドシェイク）
+  「この公開鍵で暗号化して送ってください」
+  → 第三者が傍受しても解読できない方法で鍵を共有
+
+Step 3: 暗号化トンネル確立
+  以降のすべての通信が AES-256 で暗号化される
+
+Step 4: 通信
+  あなたのデータ → 暗号化 → VPNサーバー → 復号 → 目的地
+</code></pre>
+<hr />
+<h2>よく聞く暗号化用語の整理</h2>
+<table>
+<thead>
+<tr>
+<th>用語</th>
+<th>意味</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AES-256</td>
+<td>現在最強の暗号化規格</td>
+<td>VPN、ファイル暗号化</td>
+</tr>
+<tr>
+<td>TLS 1.3</td>
+<td>ウェブ通信の暗号化プロトコル</td>
+<td>https://</td>
+</tr>
+<tr>
+<td>ゼロ知識暗号化</td>
+<td>サービス提供者も内容を見られない</td>
+<td>ProtonMail、Bitwarden</td>
+</tr>
+<tr>
+<td>エンドツーエンド暗号化（E2E）</td>
+<td>送受信者だけが読める</td>
+<td>iMessage、Signal</td>
+</tr>
+<tr>
+<td>ハッシュ（bcrypt等）</td>
+<td>元に戻せない一方向変換</td>
+<td>パスワード保存</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1>PART 3｜AI開発でVPNは使って大丈夫か？</h1>
+<hr />
+<h2>結論から言うと</h2>
+<pre><code>✅ 使っても問題ない場合
+  - カフェ・ホテルなどのフリーWi-Fiで AI API を叩く
+  - テレワーク中に Claude / ChatGPT を使う
+  - 海外から日本のサービスにアクセスする
+
+⚠️ 注意が必要な場合
+  - VPNサービス自体を信頼していない（プロバイダ選びが重要）
+  - 企業のVPN経由でAIに社外秘データを送る（会社ポリシー確認必須）
+  - VPNでIPをごまかして規約違反行為をする（利用規約違反）
+
+❌ VPNでも守れないこと
+  - AIサービス（Anthropic / OpenAI）に送ったデータの内容
+  - デバイスへのマルウェア感染
+  - フィッシングサイトへのアクセス
+</code></pre>
+<hr />
+<h2>AI API 呼び出しとVPNの関係</h2>
+<pre><code>VPNなし：
+  あなたのコード → API呼び出し → Claude / OpenAI API
+  ↑ ISPや悪意あるWi-Fiが「〇〇のAPIを使っている」と分かる
+    （内容は HTTPS で暗号化済みだが、接続先は見える）
+
+VPNあり：
+  あなたのコード → VPN → API呼び出し → Claude / OpenAI API
+  ↑ VPNサーバーのIPからアクセスしているように見える
+    接続先も外からは分からない
+</code></pre>
+<h3>AIサービスが送ったデータを見るのはVPNで防げるか？</h3>
+<pre><code>❌ 防げません。
+
+VPN = 「あなたとAPIの間の通信経路」を暗号化するもの
+
+Claude / ChatGPT サービス自体はあなたのプロンプトを受け取って処理します。
+VPNがあっても、AIサービス側には送ったデータが届いています。
+
+つまり：
+  個人情報をAIに送ることのリスク ≠ VPNで解決できる問題
+  → これはプロンプト設計（マスキング）で対策する（STEP 4参照）
+</code></pre>
+<hr />
+<h2>企業・チームでのVPN活用シーン</h2>
+<h3>シーン①：テレワーク × AI開発</h3>
+<pre><code>推奨構成：
+
+自宅PC ──── 企業VPN ──── 社内開発環境
+                ↓
+           社内の Claude API キー・DB接続情報にアクセス
+           ↑ 社外からの不正アクセスを防ぎながらAI開発できる
+</code></pre>
+<h3>シーン②：フリーWi-Fi × API開発</h3>
+<pre><code>カフェのWi-Fi（危険）：
+  悪意あるWi-Fi → 通信を傍受 → APIキーが盗まれる可能性
+
+パーソナルVPN使用時：
+  カフェのWi-Fi → VPN（暗号化） → API呼び出し → 安全
+</code></pre>
+<blockquote>
+<p><strong>カフェや共有スペースで開発するなら、パーソナルVPNは必須です。</strong></p>
+</blockquote>
+<h3>シーン③：AWS / GCP の社内リソースへのアクセス</h3>
+<pre><code>社内のAI開発環境（プライベートサブネット）
+  ↑
+  AWS VPNまたはプライベートなエンドポイントでのみアクセス可能
+  ↑
+  インターネットから直接アクセス不可 → セキュリティが高い
+
+Claude Code や Cursor が AWS上の社内DBにアクセスする場合も
+この構成が推奨されます。
+</code></pre>
+<hr />
+<h2>VPNプロバイダ選びの注意点</h2>
+<h3>信頼できるVPNの条件</h3>
+<table>
+<thead>
+<tr>
+<th>条件</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ノーログポリシー（監査済み）</strong></td>
+<td>VPN業者にも通信記録を残さない</td>
+</tr>
+<tr>
+<td><strong>オープンソースのクライアント</strong></td>
+<td>コードが公開されていて検証できる</td>
+</tr>
+<tr>
+<td><strong>本社所在地が安全な国</strong></td>
+<td>法律で政府にログを渡す義務がない国</td>
+</tr>
+<tr>
+<td><strong>WireGuard / OpenVPN対応</strong></td>
+<td>実績ある安全なプロトコル使用</td>
+</tr>
+</tbody>
+</table>
+<h3>法人・開発用として評判の良いVPN</h3>
+<table>
+<thead>
+<tr>
+<th>サービス</th>
+<th>特徴</th>
+<th>料金感</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mullvad VPN</strong></td>
+<td>匿名性最高・監査済み・メールアドレス不要</td>
+<td>約¥700/月</td>
+</tr>
+<tr>
+<td><strong>ProtonVPN</strong></td>
+<td>スイス法律・無料プランあり・オープンソース</td>
+<td>無料〜¥1,200/月</td>
+</tr>
+<tr>
+<td><strong>NordVPN</strong></td>
+<td>機能豊富・日本語対応・ビジネスプランあり</td>
+<td>約¥600/月〜</td>
+</tr>
+<tr>
+<td><strong>AWS Client VPN</strong></td>
+<td>AWS環境との親和性が高い・企業向け</td>
+<td>使用量課金</td>
+</tr>
+<tr>
+<td><strong>Cisco AnyConnect</strong></td>
+<td>大企業向け・エンタープライズ標準</td>
+<td>要見積もり</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>無料VPNには注意してください。</strong><br />
+無料VPNの多くは「あなたの通信データを売ることで収益を上げている」可能性があります。<br />
+セキュリティのためのVPNが、逆に情報漏洩の原因になる例が報告されています。</p>
+</blockquote>
+<hr />
+<h2>VPNプロトコルの比較</h2>
+<table>
+<thead>
+<tr>
+<th>プロトコル</th>
+<th>速度</th>
+<th>セキュリティ</th>
+<th>推奨度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WireGuard</strong></td>
+<td>最速</td>
+<td>高（最新）</td>
+<td>✅ 最推奨</td>
+</tr>
+<tr>
+<td><strong>OpenVPN</strong></td>
+<td>中</td>
+<td>高（実績あり）</td>
+<td>✅ 推奨</td>
+</tr>
+<tr>
+<td>IKEv2/IPSec</td>
+<td>速い</td>
+<td>高</td>
+<td>✅ 推奨（モバイル向け）</td>
+</tr>
+<tr>
+<td>L2TP/IPSec</td>
+<td>中</td>
+<td>中</td>
+<td>△ 許容</td>
+</tr>
+<tr>
+<td>PPTP</td>
+<td>速い</td>
+<td>低（脆弱性あり）</td>
+<td>❌ 非推奨</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1>PART 4｜実践：AI開発者のためのVPN設定</h1>
+<hr />
+<h2>ローカル開発での推奨設定</h2>
+<pre><code class="language-bash"># フリーWi-Fi接続時のチェックリスト
+
+□ VPNに接続してから開発を始める
+□ VPN接続を確認してからAPIキーを含む操作をする
+□ VPN切断時は作業を一時停止する
+□ 公共のWi-Fiでは.envファイルを直接触らない
+</code></pre>
+<h2>Claude Code / Cursor 利用時の注意</h2>
+<pre><code>Claude Code や Cursor（AI開発ツール）は：
+  → コードを外部AIサービスに送信します
+  → VPN経由でも「何のコードを送ったか」はAIサービスが受け取ります
+  → VPNは「経路の安全」を守るだけ
+
+つまり：
+  ✅ VPN + フリーWi-Fi → 経路は安全
+  ⚠️ 送るコードに秘密情報（APIキー、個人情報）を含めない
+     → これはVPNでなくCLAUDE.mdとコード設計で対策する
+</code></pre>
+<h2>在宅・テレワーク開発の基本セキュリティセット</h2>
+<pre><code>【最低限】
+  ✅ デバイスのファイアウォールをON
+  ✅ HTTPS（TLS）のみのサービスを使う
+  ✅ パスワードマネージャーを使う（1Password等）
+
+【推奨】
+  ✅ パーソナルVPNを使う（ProtonVPN / Mullvad等）
+  ✅ 二段階認証（2FA）を全サービスに設定
+  ✅ 会社のリソースには企業VPN経由でのみアクセス
+
+【エンタープライズ】
+  ✅ ゼロトラストアーキテクチャ（VPNの次世代版）
+  ✅ IAMで細かくアクセス制御
+  ✅ SIEM（ログ監視）導入
+</code></pre>
+<hr />
+<h2>よくある質問</h2>
+<p><strong>Q. VPNを使えばハッキングされない？</strong></p>
+<blockquote>
+<p>いいえ。VPNは通信経路の安全を守るものです。デバイスへの攻撃やフィッシング詐欺は防げません。</p>
+</blockquote>
+<p><strong>Q. VPNを使うと通信が遅くなる？</strong></p>
+<blockquote>
+<p>少し遅くなります（5〜30%程度）。WireGuardプロトコルなら速度低下が最小限です。</p>
+</blockquote>
+<p><strong>Q. 会社のVPNとパーソナルVPNは同時に使える？</strong></p>
+<blockquote>
+<p>通常は使えません（スプリットトンネリング設定で部分的に可能なケースも）。会社のVPN利用中はパーソナルVPNを切るのが一般的です。</p>
+</blockquote>
+<p><strong>Q. VPNで匿名になれる？</strong></p>
+<blockquote>
+<p>完全には匿名になれません。VPNプロバイダはあなたを特定できます。完全な匿名性にはTor等が必要ですが、開発用途には不向きです。</p>
+</blockquote>
+<p><strong>Q. AI開発でVPNは必須か？</strong></p>
+<blockquote>
+<p>「自宅の固定回線 + 企業のファイアウォール」があればすぐ必須ではありません。<br />
+カフェ・ホテル・シェアオフィスなど<strong>不特定多数が使うWi-Fi環境では必須</strong>です。</p>
+</blockquote>
+<hr />
+<h2>📌 PART 4 の結論</h2>
+<blockquote>
+<p><strong>VPNは「通信経路の安全」を守るツールです。AI開発において使って問題ありません。</strong><br />
+ただし「VPNを使えばAIに個人情報を送っても安全」は誤解です。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>状況</th>
+<th>推奨アクション</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>カフェ・ホテルでAI開発</td>
+<td>✅ パーソナルVPN必須（ProtonVPN / Mullvad等）</td>
+</tr>
+<tr>
+<td>在宅テレワーク（固定回線）</td>
+<td>△ 強く推奨（あれば安心）</td>
+</tr>
+<tr>
+<td>社内リソースへのリモートアクセス</td>
+<td>✅ 企業VPN必須</td>
+</tr>
+<tr>
+<td>AIへの個人情報送信リスク</td>
+<td>❌ VPNで解決しない → マスキング・CLAUDE.mdで対策</td>
+</tr>
+<tr>
+<td>無料VPNの使用</td>
+<td>❌ 避ける（データ販売のリスク）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>一言まとめ：</strong> フリーWi-Fiでの開発には有料のパーソナルVPNを使う。<br />
+AIへのデータ送信リスクはVPNでなくプロンプト設計で対策する。</p>
+</blockquote>
+<hr />
+<h2>参考：VPN関連YouTube動画</h2>
+<p>下記の動画でVPNの基礎・AI開発との関係を詳しく解説しています：</p>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=iCuLBHEu5mU">VPNとは何か（基礎解説）</a></li>
+<li><a href="https://www.youtube.com/watch?v=rpbnzCCEEt0">暗号化の仕組みをわかりやすく</a></li>
+<li><a href="https://www.youtube.com/watch?v=6j8H7ZPbzVk">VPNの選び方・設定方法</a></li>
+<li><a href="https://www.youtube.com/watch?v=fwwPCVtVWEo">AI開発とVPN</a></li>
+</ul>
+<hr />
+<p><em>このドキュメントはAI導入支援ミーティング用の補助資料です。2026年版</em></p></div></div>
 
 <div class="footer">
-  <p>AIエージェント セキュリティドキュメント v3.5 | 2026年版</p>
+  <p>AIエージェント セキュリティドキュメント v3.6 | 2026年版</p>
 </div>
 
 <script>
@@ -3012,7 +3490,6 @@ function showTab(n) {
   window.scrollTo(0, 0);
 }
 
-// 結論ブロックのh2を視覚的に強調
 document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('h2').forEach(function(h) {
     if (h.textContent.includes('結論')) {
