@@ -37,6 +37,9 @@ blockquote p { margin: 6px 0; }
 hr { border: none; border-top: 2px solid #e0e0e0; margin: 30px 0; }
 strong { color: #1a237e; }
 a { color: #3949ab; }
+/* 結論ブロック：📌 を含む h2 を強調 */
+h2:has(+ *) { }
+.content h2 { }
 .footer { text-align: center; padding: 16px; color: rgba(255,255,255,0.5); background: #1a1a2e; margin-top: 40px; font-size: 0.8em; }
 </style>
 </head>
@@ -199,6 +202,39 @@ docs/internal-only/
 - ユーザー入力は必ずバリデーションしてからDBに渡すこと
 - 生成したコードにはSQLインジェクション対策を必ず含めること
 </code></pre>
+<hr />
+<hr />
+<h2>📌 STEP 1 の結論</h2>
+<blockquote>
+<p><strong>AIエージェントは <code>.env</code> を含むプロジェクト内のファイルを読めます。</strong><br />
+フォルダ構成を整えるだけでなく、<strong>AIに読ませない設定（<code>.claudeignore</code> + <code>settings.json</code>）</strong> を必ず入れてください。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>やること</th>
+<th>優先度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.claudeignore</code> に <code>.env*</code> を追加</td>
+<td>🔴 今すぐ</td>
+</tr>
+<tr>
+<td><code>settings.json</code> で Read 拒否ルールを設定</td>
+<td>🔴 今すぐ</td>
+</tr>
+<tr>
+<td>CLAUDE.md にセキュリティポリシーを記述</td>
+<td>🟡 今週中</td>
+</tr>
+<tr>
+<td>docs フォルダの内容を点検（本番URL・接続情報がないか確認）</td>
+<td>🟡 今週中</td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2>✅ STEP 1 確認事項チェック</h2>
 <ul>
@@ -435,6 +471,43 @@ git log --all -S &quot;sk-&quot; --oneline
 - npm install / pip install は確認なしに実行しない
 </code></pre>
 <hr />
+<hr />
+<h2>📌 STEP 2 の結論</h2>
+<blockquote>
+<p><strong><code>.env</code> ファイルはNG寄りです。個人開発のローカル限定でのみ最低ライン。</strong><br />
+<strong>本番環境・チーム開発では AWS Secrets Manager か 1Password CLI を使ってください。</strong></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>状況</th>
+<th>推奨手段</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>個人・ローカル開発</td>
+<td>OS の環境変数（<code>export</code>）を使う</td>
+</tr>
+<tr>
+<td>小チーム・スタートアップ</td>
+<td><strong>1Password CLI</strong>（チームで共有・即導入可能）</td>
+</tr>
+<tr>
+<td>AWSを使った本番環境</td>
+<td><strong>AWS Secrets Manager</strong>（IAMロール認証・ログ付き）</td>
+</tr>
+<tr>
+<td>エンタープライズ</td>
+<td>HashiCorp Vault</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>一言まとめ：</strong> 「.envに実際のキーを書く」から卒業することが目標。<br />
+まず <code>.env</code> の扱いを <code>settings.json</code> で制限し、次回までに 1Password か Secrets Manager の移行計画を立てる。</p>
+</blockquote>
+<hr />
 <h2>✅ STEP 2 確認事項チェック</h2>
 <ul>
 <li>[ ] APIキーがコードに直書きされていない</li>
@@ -511,6 +584,42 @@ console.log(&quot;ユーザー情報:&quot;, safeUser);
 - メールアドレスをログに出す場合はマスキングを行う（例: u***@example.com）
 - 外部APIに個人情報を送る場合は必ず事前に確認・承認を取ること
 </code></pre>
+<hr />
+<hr />
+<h2>📌 STEP 3 の結論</h2>
+<blockquote>
+<p><strong>個人情報はログに出さない・必要な人だけ触れる、が鉄則。</strong><br />
+ユーザーオブジェクトを丸ごと <code>console.log</code> に渡すのが最も多い事故パターンです。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>やること</th>
+<th>優先度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>取り扱う個人情報の一覧を作成する</td>
+<td>🔴 今すぐ</td>
+</tr>
+<tr>
+<td><code>console.log(user)</code> を全コードから撲滅する</td>
+<td>🔴 今すぐ</td>
+</tr>
+<tr>
+<td>パスワードは保存時に bcrypt/Argon2 でハッシュ化する</td>
+<td>🔴 リリース前必須</td>
+</tr>
+<tr>
+<td>DBアクセスをロール分けする</td>
+<td>🟡 本番前</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>一言まとめ：</strong> 「このデータ、本当にログに出す必要があるか？」を開発者全員が習慣として持つことが重要。</p>
+</blockquote>
 <hr />
 <h2>✅ STEP 3 確認事項チェック</h2>
 <ul>
@@ -692,6 +801,42 @@ console.log(&quot;ユーザー操作:&quot;, sanitizeForLog(user));
 </tbody>
 </table>
 <hr />
+<hr />
+<h2>📌 STEP 4 の結論</h2>
+<blockquote>
+<p><strong>マスキングは「どこで」「なぜ」が重要。3つのシーンで対応箇所が違います。</strong></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>シーン</th>
+<th>誰を守る</th>
+<th>最重要ポイント</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>画面表示</td>
+<td>エンドユーザー</td>
+<td>パスワード欄・カード番号の表示制御</td>
+</tr>
+<tr>
+<td>AIプロンプト</td>
+<td>ユーザーとサービス</td>
+<td><code>sanitizeUser()</code> を必ず経由する設計</td>
+</tr>
+<tr>
+<td>ログ出力</td>
+<td>システム管理者とユーザー</td>
+<td>センシティブキーを自動マスクする共通関数</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>一言まとめ：</strong> AIへのプロンプト構築は <code>src/ai/prompt-builder.js</code> に集約する。<br />
+それだけで「うっかり個人情報をAIに送る」事故の9割が防げます。</p>
+</blockquote>
+<hr />
 <h2>✅ STEP 4 確認事項チェック</h2>
 <ul>
 <li>[ ] パスワード入力欄は <code>type="password"</code> になっている</li>
@@ -780,6 +925,39 @@ const messages = [
   }
 ];
 </code></pre>
+<hr />
+<hr />
+<h2>📌 STEP 5 の結論</h2>
+<blockquote>
+<p><strong>AIエージェントに「何でもやっていい権限」を与えるのが最も危険です。</strong><br />
+「最小権限の原則」＋「高リスク操作は人間が最終確認」が基本セットです。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>操作リスク</th>
+<th>対応</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🟢 データ読み取り・検索</td>
+<td>自動実行OK</td>
+</tr>
+<tr>
+<td>🟡 データ作成・更新</td>
+<td>ログ記録必須</td>
+</tr>
+<tr>
+<td>🔴 削除・メール送信・課金・外部公開</td>
+<td><strong>人間の承認ステップを挟む</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>一言まとめ：</strong> 「AIが間違えたとき、取り返しがつくか？」を権限設計の基準にする。<br />
+取り返しのつかない操作（削除・送信・課金）は、必ず人間の確認ボタンを1つ挟んでください。</p>
+</blockquote>
 <hr />
 <h2>✅ STEP 5 確認事項チェック</h2>
 <ul>
@@ -2820,7 +2998,7 @@ STRIPE_API_KEY=op://MyVault/Stripe/secret-key
 <p><em>参考：OWASP LLM Top 10 / Anthropic Security Best Practices / AWS Secrets Manager Documentation</em></p></div></div>
 
 <div class="footer">
-  <p>AIエージェント セキュリティドキュメント v3.4 | 2026年版</p>
+  <p>AIエージェント セキュリティドキュメント v3.5 | 2026年版</p>
 </div>
 
 <script>
@@ -2833,6 +3011,17 @@ function showTab(n) {
   });
   window.scrollTo(0, 0);
 }
+
+// 結論ブロックのh2を視覚的に強調
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('h2').forEach(function(h) {
+    if (h.textContent.includes('結論')) {
+      h.style.background = 'linear-gradient(to right, #e8f5e9, transparent)';
+      h.style.borderLeftColor = '#43a047';
+      h.style.color = '#2e7d32';
+    }
+  });
+});
 </script>
 </body>
 </html>
